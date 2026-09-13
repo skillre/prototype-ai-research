@@ -1,0 +1,20 @@
+{
+  "productType": "ai-research-workspace",
+  "firstVisual": "一条纵向论证链占据主空间，研究问题锚定顶部；每条论断旁直接附着引用原文，其中一处无证据支撑的断点以虚线空槽成为第一视觉焦点，右侧窄带仅列出尚未处理的证据缺口与矛盾。",
+  "stylePack": "instrument",
+  "signatureComponents": ["insight-reveal", "data-cursor"],
+  "effects": [],
+  "motionDirection": "precise-structural",
+  "density": "medium",
+  "avoid": [
+    "dashboard-hero",
+    "kpi-cards",
+    "card-grid",
+    "chat-window",
+    "progress-percentage",
+    "generic-ai-dashboard",
+    "ambient-animation",
+    "cyber-terminal-aesthetic",
+    "source-count-charts"
+  ]
+}

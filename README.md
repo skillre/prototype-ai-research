@@ -1,8 +1,70 @@
-# Prototype Starter — Prototype Factory
+# AI Research Workspace — 承重结构 / Load-Bearing
 
-An agent-friendly foundation for building **high-fidelity interactive prototypes**:
-Next.js 16 (App Router) + TypeScript + Tailwind v4 + shadcn/ui (Base UI) + Motion + Zustand —
-frontend only, local state, realistic mock data. No database, no auth, no backend service.
+> **Working code name.** The product name is deliberately undecided — see §Naming below.
+
+一个以**研究过程、证据、来源、论断、关系、研究轨迹**为核心的 AI 研究工作台。
+
+它的核心 Job 是：**判断手上的证据到底支持什么结论，以及哪里还不支持。**
+不是「帮你找资料」，也不是「帮你写」——那两件事已经有足够好的工具。
+第一等的价值是**告诉你你的论证哪里是断的**。
+
+## Visual direction
+
+人工 Art Direction checkpoint 已通过，方向为 **承重结构 / Load-Bearing**：一条纵向论证链，
+**无证据支撑的断点以虚线空槽成为第一视觉焦点**，右侧窄带只列尚未处理的证据缺口与矛盾。
+
+| | |
+|---|---|
+| Style Pack | `instrument`（**有意偏离**：产品密度是 `medium`，pack 默认 `high`） |
+| Signature Components | `insight-reveal` · `data-cursor` |
+| Effects | *(none — 本产品要验证的是严肃、可核查的研究工作台，不是 cyber/terminal aesthetic)* |
+| Motion | `precise-structural` |
+| Density | `medium` |
+
+权威来源是 `visual-manifest.json`。校验：`pnpm factory:manifest --kits ../prototype-kits`。
+
+## Naming
+
+产品正式名称未决定。仓库名 `prototype-ai-research` 与工作代号 `Load-Bearing` 都只是代号。
+`Research.title` 在数据集里是 `undefined` —— 这是刻意的：一个尚未做出的决定不应该被硬编码进数据。
+
+## Phase status
+
+| Phase | 内容 | 状态 |
+|---|---|---|
+| 1 | Product Model + Art Direction（A/B/C 三方向 + 推荐） | ✅ 完成，人工 checkpoint 已通过 |
+| 2 | Visual Manifest + Implementation Plan | ✅ 完成，Manifest `[verified]` |
+| **A** | **Repository + Domain Model + Invariants** | ✅ **完成 —— 12 条不变量全绿，零 Product UI** |
+| B | Relation Contract implementation | ⬜ 未开始 |
+| C+ | Kits installation → Build → QA → Preview → Visual Acceptance | ⬜ 未开始 |
+
+**本阶段没有写任何产品界面。** `lib/research/` 是纯 TypeScript 领域层，`tests/invariants.spec.ts`
+是它的规格书。在 UI 大规模实现之前先把不变量跑绿，是 Factory 的 invariant-first 要求，
+也是这个产品的实际需要：数据型 UI 的价值完全建立在「屏幕上的数字是对的」之上。
+
+## Domain layer
+
+业务真相只有一个来源，且它不依赖 React、不依赖网络、不依赖时间：
+
+```
+lib/research/
+  types.ts        实体与值类型
+  projections.ts  所有派生值的唯一来源（活跃/历史投影、证据强度、依据状态、引用完整性）
+  tensions.ts     张力推导 + 处置合并
+  trace.ts        append-only 轨迹
+  operations.ts   唯一允许修改数据的入口（状态与轨迹原子同写）
+  ai-reviewer.ts  AI 输出的数据契约与校验（无模型调用）
+  dataset.ts      确定性 mock 数据集
+```
+
+见 `AGENTS.md` 的「领域层」一节，以及 `tests/invariants.spec.ts` 里那 12 条不变量。
+
+---
+
+# Factory baseline
+
+This repo is a product built **on** the Prototype Factory. The sections below describe the
+Factory mechanisms that came with the baseline (v1.1.0).
 
 It is a **Factory**: it defines *how a prototype is produced*. It deliberately does **not**
 define what a prototype looks like — that belongs to **Prototype Kits**, chosen per product
@@ -189,19 +251,26 @@ just intended: a contract test scans `lib/`, `components/`, `app/`, `scripts/`, 
 | **Docs** | `docs/visual-manifest.md`, `docs/kits-ownership.md`, `docs/browser-qa.md`, `docs/prototype-creation-workflow.md`, `docs/vercel-bootstrap.md`, `docs/factory-audit-v1.1.md` |
 | **Skills** | `skills/interactive-prototype/SKILL.md`, `skills/git-delivery/SKILL.md` |
 
-### Still in the repo: the reference product
+### What this repo removed
 
-`app/crm/**` is the **AI CRM** reference prototype, built with the pre-v1.1 flow. It stays working
-and is still covered by tests, but it has been demoted out of Factory Core: v1.1's rules no longer
-describe it, and it is no longer the definition of the Factory's visual direction. Treat it as a
-sample, not as a template.
+This repo was derived from Factory v1.1.0 and the **CRM Reference Sample was removed**, not demoted:
+`app/crm/**`, `lib/crm-data.ts`, `lib/insights.ts`, `lib/ai-summary.ts`, `lib/activity-groups.ts`,
+`stores/crm-store.ts` and the CRM specs are gone. The CRM identity that had leaked into the shared
+copy layer went with them (`customers` / `customer` / `dashboard` / `tasks` / `activities` /
+`opportunities` / `account` / `status` / `plan` / `page` / `nav` / `brand` dictionary groups;
+`lib/i18n/zh-CN.ts` 1028 → 603 lines).
 
-The neutral demo is `/demo` — non-CRM, non-Finance, no Style Pack.
+That also removed the compile-time coupling recorded in Factory v1.1's audit §5: the dictionary no
+longer imports CRM types, because the module it pointed at no longer exists.
+
+The neutral demo `/demo` is kept deliberately — non-CRM, no Style Pack. It exists so the baseline is
+demonstrably runnable and the shared components stay exercised. **It is not a product template and
+not product UI.**
 
 ## Structure
 
 ```
-app/                     # routes: / (landing), /demo (neutral demo), /crm (reference product)
+app/                     # routes: / (landing), /demo (Factory neutral demo)
 components/
   ui/                    # shadcn/ui primitives (Base UI "base-nova")
   prototype/             # reusable product components — injection-required

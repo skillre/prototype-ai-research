@@ -351,14 +351,41 @@ source data == visualization（图上数值 == 源数据）· insights refer to 
 ## 文案与本地化
 
 - 默认语言 **zh-CN**。`app/**` 与 `components/**` 里**不允许**出现硬编码的用户可见文案，一律经 `useMessages()`（服务端用 `messages`）从 `lib/i18n` 取。
-- 词典负责**界面文案**；**业务记录内容**（客户名、公司名、备注、金额）留在 `lib/crm-data.ts` / `lib/mock-data.ts`，不做翻译。
-- 路由 slug 保持英文（`/crm/customers`），界面显示中文。新增 locale 只需在 `lib/i18n/` 增加一个 `Messages` 形状的文件。
-- 允许保留原文的只有：品牌名、URL、Email、技术栈名称、代码、键盘快捷键。这份白名单集中在 `tests/support/localization.ts`，并断言 `/`、`/demo` 与全部 `/crm` 路由（含浮层）零泄漏。
+- 词典负责**界面文案**；**业务记录内容**（研究问题、论断、原文片段、来源标题）留在 `lib/research/`，不做翻译。
+- 路由 slug 保持英文，界面显示中文。新增 locale 只需在 `lib/i18n/` 增加一个 `Messages` 形状的文件。
+- 允许保留原文的只有：品牌名、URL、Email、技术栈名称、代码、键盘快捷键。这份白名单集中在 `tests/support/localization.ts`，并断言 `LOCALIZED_ROUTES` 里的每条路由（含浮层）零泄漏。
+  **产品页面出现后，把它加进 `LOCALIZED_ROUTES`。** 不要预先登记尚未实现的路由——那会让这个 spec 在上线前就假绿。
+
+## 领域层（lib/research/）
+
+本产品的业务真相只有一个来源：**纯 TypeScript 领域层**。它不依赖 React、不依赖网络、不依赖时间。
+
+```
+types.ts        实体与值类型。只有形状，没有行为。
+projections.ts  所有派生值的唯一来源（活跃/历史投影、证据强度、依据状态、引用完整性）
+tensions.ts     张力推导（派生事实）+ 处置合并
+trace.ts        append-only 轨迹与查询
+operations.ts   唯一允许修改数据的入口，状态与轨迹原子同写
+ai-reviewer.ts  AI 输出的数据契约与校验（无模型调用）
+dataset.ts      确定性 mock 数据集
+```
+
+**四条不可协商的规则：**
+
+1. **同一计算不能有第二份实现。** 界面里显示的每一个数字——引用数、证据强度、缺口——都必须来自领域层。页面里重算一次就等于开了一个会静默漂移的第二事实来源。
+2. **派生值从不存储。** 证据强度、依据状态、张力事实全部在读取时算。`ResearchData` 里**没有** `tensions` 数组，这是刻意的。
+3. **撤回不是删除。** 没有 `deleteClaim` / `deleteLink`，也不会有。论断用 `status: "retracted"`，链接用 `retiredAt`。历史投影永远查得到。
+4. **只有一种人写的关系原语：`EvidenceLink`。** 不要引入 `ClaimRelation` / `GraphEdge` / `RelationNode`。Claim ↔ Claim 的冲突由数据推导成 `Tension`。
+
+**改动领域层之前先读 `tests/invariants.spec.ts`。** 那 12 条不变量是这个产品的规格书，不是测试的附属品。
+
+**唯一的关系原语：** `Passage ── EvidenceLink ──> Claim`，stance 为 `supports` / `contradicts` / `qualifies` / `context`。
+`contradicts` 是信息量最大的一类——工具普遍只记录「我引用过这个」，不记录「这段材料其实在反驳我」。
 
 ## Zustand 约定
 
-- selector 只取**原始值**（如 `customers` 数组本身），派生（filter/sort/计数）在组件内用 `useMemo`。**禁止在 selector 里返回新数组/新对象**（zustand v5 会无限渲染）。
-- 参考 `stores/dashboard-store.ts` 的 `selectFilteredCustomers` 纯函数。
+- selector 只取**原始值**，派生（filter/sort/计数）在组件内用 `useMemo`。**禁止在 selector 里返回新数组/新对象**（zustand v5 会无限渲染）。
+- 领域层的派生函数是纯函数，可以从 selector 里直接调；**不要把派生值塞进 store**。
 
 ## 常用命令
 
