@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "registryVersion": "0.1.1",
-  "generatedAt": "2026-09-13T14:17:13.830Z",
+  "generatedAt": "2026-09-13T14:25:08.163Z",
   "source": {
     "kind": "source-installation",
     "repo": "prototype-kits",
@@ -428,14 +428,14 @@
   ],
   "adapters": {
     "templateVersion": "0.1.1",
-    "written": [
+    "written": [],
+    "kept": [
       "lib/kits/adapters/style-instrument.css",
       "lib/kits/adapters/style-instrument.ts",
       "lib/kits/adapters/style-pack.ts",
       "lib/kits/adapters/insight-reveal.tsx",
       "lib/kits/adapters/data-cursor.tsx",
       "lib/kits/adapters/README.md"
-    ],
-    "kept": []
+    ]
   }
 }
