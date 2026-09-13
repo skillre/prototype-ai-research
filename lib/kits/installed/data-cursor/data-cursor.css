@@ -1,0 +1,179 @@
+/* =============================================================================
+ * DataCursor —— 结构样式
+ *
+ * 输入（全部来自 Style Pack）：
+ *   --kits-cursor-size         指示器点/十字的尺寸（8 / 4px）
+ *   --kits-cursor-ring-size    外环尺寸（32 / 44 / 22px）
+ *   --kits-cursor-color        主色
+ *   --kits-cursor-ring-color   外环色
+ *   --kits-cursor-label-size   标签字号
+ *   --kits-dur-quick           跟随/形变时长
+ *   --kits-ease-spring         形变缓动
+ *
+ * 两个关键实现细节：
+ *   1. 指示器本体用 position: fixed + translate3d 跟随，不参与文档布局；
+ *   2. 只有被标记的区域才隐藏系统光标（.kits-cursor-root--hide-native 下的
+ *      [data-cursor]），而不是整页 —— 用户不会在任何地方"失去光标"。
+ * ========================================================================== */
+
+.kits-cursor-root {
+  /* 默认不做任何事：未激活时它就是一个普通容器 */
+  position: relative;
+}
+
+.kits-cursor-root--active.kits-cursor-root--hide-native [data-cursor] {
+  cursor: none;
+}
+
+/* -----------------------------------------------------------------------------
+ * 指示器容器：固定定位，完全脱离文档流与命中测试
+ * -------------------------------------------------------------------------- */
+
+.kits-cursor {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  /* 容器本身不绘制，只是两个子层的参照系 */
+  contain: layout style;
+}
+
+.kits-cursor__dot,
+.kits-cursor__ring {
+  position: fixed;
+  top: 0;
+  left: 0;
+  /* 位移 = JS 写入的像素坐标。用 translate3d 走合成层。 */
+  transform: translate3d(
+    var(--kits-cursor-x, -200px),
+    var(--kits-cursor-y, -200px),
+    0
+  );
+  will-change: transform;
+}
+
+/* -----------------------------------------------------------------------------
+ * 点：跟随「紧」（时长最短）
+ * -------------------------------------------------------------------------- */
+
+.kits-cursor__dot {
+  width: var(--kits-cursor-size);
+  height: var(--kits-cursor-size);
+  margin: calc(var(--kits-cursor-size) / -2) 0 0
+    calc(var(--kits-cursor-size) / -2);
+  background: var(--kits-cursor-color);
+  border-radius: var(--kits-radius-avatar);
+  opacity: 0.9;
+  transition:
+    width var(--kits-dur-quick) var(--kits-ease-spring),
+    height var(--kits-dur-quick) var(--kits-ease-spring),
+    background-color var(--kits-dur-quick) var(--kits-ease-out);
+}
+
+/* -----------------------------------------------------------------------------
+ * 环：跟随「松」，并承载标签
+ *
+ * 环的形变是 DataCursor 的核心反馈语言：
+ *   - 普通区域：空心环
+ *   - 可交互元素（data-cursor="interactive"）：环收紧
+ *   - 数据元素（data-cursor="inspect"）：环放大 + 显示读数标签
+ * -------------------------------------------------------------------------- */
+
+.kits-cursor__ring {
+  width: var(--kits-cursor-ring-size);
+  height: var(--kits-cursor-ring-size);
+  margin: calc(var(--kits-cursor-ring-size) / -2) 0 0
+    calc(var(--kits-cursor-ring-size) / -2);
+  border: var(--kits-border-width-strong) var(--kits-border-style)
+    var(--kits-cursor-ring-color);
+  border-radius: var(--kits-radius-avatar);
+  display: grid;
+  place-items: center;
+  transition:
+    width var(--kits-dur-base) var(--kits-ease-spring),
+    height var(--kits-dur-base) var(--kits-ease-spring),
+    border-color var(--kits-dur-quick) var(--kits-ease-out),
+    opacity var(--kits-dur-quick) var(--kits-ease-out);
+  opacity: 0.55;
+}
+
+.kits-cursor--target-interactive .kits-cursor__ring {
+  opacity: 1;
+}
+
+.kits-cursor--target-interactive .kits-cursor__dot {
+  background: var(--kits-cursor-ring-color);
+}
+
+/* 数据检视态：环放大 + 标签浮现 + 主色点亮 */
+.kits-cursor--target-inspect .kits-cursor__ring {
+  width: calc(var(--kits-cursor-ring-size) * 1.35);
+  height: calc(var(--kits-cursor-ring-size) * 1.35);
+  margin: calc(var(--kits-cursor-ring-size) * -0.675) 0 0
+    calc(var(--kits-cursor-ring-size) * -0.675);
+  border-color: var(--kits-cursor-color);
+  opacity: 1;
+}
+
+.kits-cursor--target-inspect .kits-cursor__dot {
+  opacity: 0;
+}
+
+.kits-cursor__label {
+  font-family: var(--kits-font-mono);
+  font-size: var(--kits-cursor-label-size);
+  letter-spacing: var(--kits-label-tracking);
+  white-space: nowrap;
+  color: var(--kits-cursor-color);
+  /* 标签放在环的右下方，避免压住指针所在的位置 */
+  position: absolute;
+  left: 100%;
+  top: 100%;
+  padding-inline: var(--kits-space-2xs);
+  opacity: 0;
+  translate: 0 0;
+  transition:
+    opacity var(--kits-dur-quick) var(--kits-ease-out),
+    translate var(--kits-dur-base) var(--kits-ease-out);
+}
+
+.kits-cursor--target-inspect .kits-cursor__label {
+  opacity: 1;
+  translate: var(--kits-space-2xs) var(--kits-space-2xs);
+}
+
+/* -----------------------------------------------------------------------------
+ * crosshair：仪器式十字准星（取代圆点）
+ * -------------------------------------------------------------------------- */
+
+.kits-cursor--crosshair .kits-cursor__dot {
+  border-radius: 0;
+  height: var(--kits-border-width-strong);
+  width: calc(var(--kits-cursor-size) * 3);
+  margin: calc(var(--kits-border-width-strong) / -2) 0 0
+    calc(var(--kits-cursor-size) * -1.5);
+}
+
+.kits-cursor--crosshair .kits-cursor__ring {
+  border-radius: var(--kits-radius-sm);
+}
+
+/* -----------------------------------------------------------------------------
+ * 降级
+ *
+ * 组件未激活时**不渲染指示器节点**，因此这里只需要处理
+ * "激活但用户随后改了系统偏好"的过渡情况。
+ * -------------------------------------------------------------------------- */
+
+@media (hover: none), (pointer: coarse) {
+  .kits-cursor-root--active.kits-cursor-root--hide-native [data-cursor] {
+    cursor: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kits-cursor__dot,
+  .kits-cursor__ring,
+  .kits-cursor__label {
+    transition: none;
+  }
+}

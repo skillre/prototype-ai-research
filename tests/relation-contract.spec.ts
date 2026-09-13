@@ -23,6 +23,7 @@ import {
 } from "../lib/research/relation-contract"
 import type { Stance } from "../lib/research/types"
 import { freshResearch } from "../lib/research/dataset"
+import { deriveClaimConfidence } from "../lib/research/projections"
 
 /**
  * Relation Presentation Contract —— 穷尽测试。
@@ -220,8 +221,9 @@ test.describe("5 · 灰度可区分", () => {
 
 test.describe("6 · 反驳最优先", () => {
   test("contradicts 的 order 是 1", () => {
+    // order 现在是**朗读顺序与视觉顺序共用的唯一事实**——
+    // 曾经还有一个 a11y.priority 被强制等于它，那是重复事实来源，已删除。
     expect(getRelationPresentation("contradicts").order).toBe(1)
-    expect(getRelationPresentation("contradicts").a11y.priority).toBe(1)
   })
 
   test("按 order 排序后 contradicts 确实排在最前", () => {
@@ -231,7 +233,7 @@ test.describe("6 · 反驳最优先", () => {
 
   test("负例：把 contradicts 挪到后面会被拒绝", () => {
     const broken = { ...RELATION_CONTRACT } as Partial<RelationContract>
-    broken.contradicts = { ...RELATION_CONTRACT.contradicts, order: 3, a11y: { ...RELATION_CONTRACT.contradicts.a11y, priority: 3 } }
+    broken.contradicts = { ...RELATION_CONTRACT.contradicts, order: 3 }
 
     const codes = validateRelationContract(broken).map((i) => i.code)
     expect(codes).toContain("relation/contradicts-not-first")
@@ -260,10 +262,13 @@ test.describe("7 · mobile fallback", () => {
     expect(formatRelationMobileLabel("context", LOCATOR)).toBe("背景 · 第 4 页第 2 段")
   })
 
-  test("只有 supports 在窄屏保留连线，其余不画线", () => {
-    expect(getRelationPresentation("supports").mobile.showsConnector).toBe(true)
-    for (const stance of ["contradicts", "qualifies", "context"] as const) {
-      expect(getRelationPresentation(stance).mobile.showsConnector).toBe(false)
+  test("窄屏契约只描述语义，不描述画什么", () => {
+    // 这里曾经断言 showsConnector —— 那是一个 layout 决策被写进了语义层。
+    // 现在窄屏只保证三件事：词、序、分组。
+    for (const stance of EXPECTED_STANCES) {
+      const mobile = getRelationPresentation(stance).mobile
+      expect(Object.keys(mobile).sort()).toEqual(["labelTemplate"])
+      expect(mobile.labelTemplate).toContain("{label}")
     }
   })
 
@@ -289,6 +294,20 @@ test.describe("7 · mobile fallback", () => {
 test.describe("8 · a11y contract", () => {
   const LOCATOR = "第 4 页第 2 段"
   const TEXT = "两条产线已于 2025 年四季度完成爬坡并进入稳定量产阶段。"
+
+  test("a11y 契约不再携带 priority —— 读序与视序共用 order", () => {
+    // priority 曾经被强制等于 order，那是重复事实来源：两个字段表达同一件事，
+    // 而校验在保证它们不漂移。删掉字段才是让漂移不可能发生。
+    for (const stance of EXPECTED_STANCES) {
+      const a11y = getRelationPresentation(stance).a11y
+      expect(Object.keys(a11y).sort()).toEqual(
+        stance === "contradicts"
+          ? ["accessibleNameTemplate", "claimAnnouncement", "labelPrefix"]
+          : ["accessibleNameTemplate", "labelPrefix"],
+      )
+      expect(a11y).not.toHaveProperty("priority")
+    }
+  })
 
   test("可访问名始终含 stance 词 + 定位 + 原文", () => {
     for (const stance of EXPECTED_STANCES) {
@@ -395,6 +414,32 @@ test.describe("10 · confidenceRole", () => {
     expect(contributesToConfidence("supports")).toBe(true)
     expect(contributesToConfidence("contradicts")).toBe(true)
     expect(contributesToConfidence("qualifies")).toBe(true)
+  })
+
+  test("已知缺口：qualifies 的 limiting 目前是 declared semantic，没有被消费", () => {
+    // 这条测试记录的是一个**已知的不一致**，不是一件已完成的事。
+    //
+    // 契约声明 qualifies 参与证据强度，但领域层的 deriveClaimConfidence()
+    // 当前只读 supports。qualifies 对强度**没有实际影响**。
+    //
+    // 把它断言下来，是为了让这个缺口在补上限定逻辑的那一刻**立刻暴露**：
+    // 届时这条测试会失败，逼着人把契约注释、领域规则、以及新测试一起更新，
+    // 而不是让文档继续宣称一个不存在的规则。
+    const data = freshResearch()
+    const claim = "clm-capacity-crossed" // 夹具里唯一带 qualifies 链接的论断
+
+    const hasQualifies = data.links.some(
+      (link) => link.claimId === claim && link.stance === "qualifies" && link.retiredAt === null,
+    )
+    expect(hasQualifies, "夹具必须保留一条 qualifies 链接，否则这条缺口测试没被覆盖").toBe(true)
+
+    const withQualifies = deriveClaimConfidence(data, claim)
+    const withoutQualifies = deriveClaimConfidence(
+      { ...data, links: data.links.filter((l) => !(l.claimId === claim && l.stance === "qualifies")) },
+      claim,
+    )
+    // 去掉 qualifies 之后强度不变 = 它当前确实没有被消费。
+    expect(withoutQualifies).toBe(withQualifies)
   })
 
   test("用四值而不是 boolean —— 限定与反驳不能压成同一个 false", () => {

@@ -22,12 +22,10 @@
       "a11y": {
         "labelPrefix": "反驳",
         "accessibleNameTemplate": "{label} · {locator} · 原文：{text}",
-        "claimAnnouncement": "本条存在反驳证据",
-        "priority": 1
+        "claimAnnouncement": "本条存在反驳证据"
       },
       "mobile": {
-        "labelTemplate": "{label} · {locator}",
-        "showsConnector": false
+        "labelTemplate": "{label} · {locator}"
       }
     },
     "supports": {
@@ -44,12 +42,10 @@
       },
       "a11y": {
         "labelPrefix": "支持",
-        "accessibleNameTemplate": "{label} · {locator} · 原文：{text}",
-        "priority": 2
+        "accessibleNameTemplate": "{label} · {locator} · 原文：{text}"
       },
       "mobile": {
-        "labelTemplate": "{label} · {locator}",
-        "showsConnector": true
+        "labelTemplate": "{label} · {locator}"
       }
     },
     "qualifies": {
@@ -66,12 +62,10 @@
       },
       "a11y": {
         "labelPrefix": "限定",
-        "accessibleNameTemplate": "{label} · {locator} · 原文：{text}",
-        "priority": 3
+        "accessibleNameTemplate": "{label} · {locator} · 原文：{text}"
       },
       "mobile": {
-        "labelTemplate": "{label} · {locator}",
-        "showsConnector": false
+        "labelTemplate": "{label} · {locator}"
       }
     },
     "context": {
@@ -88,12 +82,10 @@
       },
       "a11y": {
         "labelPrefix": "背景",
-        "accessibleNameTemplate": "{label} · {locator} · 原文：{text}",
-        "priority": 4
+        "accessibleNameTemplate": "{label} · {locator} · 原文：{text}"
       },
       "mobile": {
-        "labelTemplate": "{label} · {locator}",
-        "showsConnector": false
+        "labelTemplate": "{label} · {locator}"
       }
     }
   }

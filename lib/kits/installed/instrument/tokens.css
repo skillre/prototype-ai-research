@@ -1,0 +1,338 @@
+/* =============================================================================
+ * Style Pack · instrument · tokens
+ *
+ * 工业仪表：工程感、密集数据、硬边界、小圆角、技术型图表。
+ *
+ * 与前两套的根本差异：
+ *   - editorial 用留白分层，cinematic 用光分层，instrument 用**刻度与标签**分层；
+ *   - 这里没有装饰：每条线都是量尺，每个数字都对齐，每个方块都是读数。
+ *   - 唯一允许的"纹理"是极低频的扫描线，用来暗示"这是个在跑的仪器"。
+ * ========================================================================== */
+
+@import "../contracts/tokens.css";
+
+/* -----------------------------------------------------------------------------
+ * 1. 颜色 —— 冷灰机箱 + 两个语义色
+ *
+ * 底色是中性冷灰（不是白，也不是暖纸）：工业面板的塑料色。
+ * 强调色只有两个：工程蓝（主）与信号琥珀（次级/告警）。
+ * -------------------------------------------------------------------------- */
+
+
+/* -----------------------------------------------------------------------------
+ * 2. 十个维度的立场
+ * -------------------------------------------------------------------------- */
+
+[data-kits-pack="instrument"] {
+  /* --- 颜色（冷灰机箱 + 两个语义色）------------------------------- */
+  --kits-color-canvas: #e8eaec;
+  --kits-color-surface: #f4f5f6;
+  --kits-color-surface-raised: #fbfbfc;
+  --kits-color-surface-sunken: #dcdfe2;
+  --kits-color-ink: #12161a;
+  --kits-color-ink-muted: #5b6469;
+  --kits-color-accent: #0b63c5;
+  --kits-color-accent-ink: #f8fafc;
+  --kits-color-accent-2: #b25e09;
+  --kits-color-positive: #0f7a3d;
+  --kits-color-negative: #b3261e;
+  --kits-color-rule: rgb(18 22 26 / 0.2);
+  --kits-color-rule-strong: rgb(18 22 26 / 0.55);
+  --kits-color-focus: #0b63c5;
+  --kits-color-glow: transparent;
+
+  /* TYPOGRAPHY · instrumental
+   * 等宽几乎承担一切：标题、标签、数字、按钮。
+   * 只有一个例外 —— 长正文用无衬线，因为等宽读三段就累。
+   * 字号小（13–15px）、行高紧（1.45）、字距略开，像仪表盘上的印刷编号。 */
+  --kits-font-display: ui-monospace, SFMono-Regular, "IBM Plex Mono", Menlo,
+    "Roboto Mono", monospace;
+  --kits-font-body: ui-monospace, SFMono-Regular, "IBM Plex Mono", Menlo,
+    monospace;
+  --kits-font-mono: ui-monospace, SFMono-Regular, "IBM Plex Mono", Menlo,
+    monospace;
+
+  --kits-display-size: clamp(1.75rem, 1rem + 2.4vw, 2.75rem);
+  --kits-display-line: 1.12;
+  --kits-display-tracking: 0.02em;
+  --kits-display-weight: 600;
+  --kits-display-transform: none;
+
+  --kits-title-size: 0.9375rem;
+  --kits-title-line: 1.3;
+  --kits-title-tracking: 0.04em;
+
+  --kits-body-size: 0.8125rem;
+  --kits-body-line: 1.45;
+  --kits-body-max-width: 74ch;
+
+  --kits-label-size: 0.625rem;
+  --kits-label-tracking: 0.12em;
+  --kits-label-transform: uppercase;
+  --kits-label-weight: 600;
+
+  --kits-data-size: 1.5rem;
+  --kits-data-weight: 600;
+  --kits-data-tracking: 0.01em;
+
+  /* SPACING RHYTHM · compact
+   * 脉搏 4px，区块间距仅 32px —— 面板上没有"留白"，只有"间隙"。 */
+  --kits-space-unit: 4px;
+  --kits-gutter: calc(var(--kits-space-unit) * 3);
+  --kits-section-gap: calc(var(--kits-space-unit) * 8);
+  --kits-content-max: 88rem; /* 更宽：一屏要放得下更多列 */
+
+  /* DENSITY · high —— 控件 28px、行高 32px。这是本套最直观的差别。 */
+  --kits-control-height: 1.75rem;
+  --kits-control-padding-x: calc(var(--kits-space-unit) * 2);
+  --kits-row-height: 2rem;
+  --kits-label-gap: var(--kits-space-unit);
+  --kits-card-padding: calc(var(--kits-space-unit) * 3);
+
+  /* RADIUS PHILOSOPHY · square（但比 editorial 更"硬"）
+   * editorial 的 0 是印刷的直角，instrument 的 1px 是**机械公差**：
+   * 有圆角，但小到看起来像制造工艺而非设计选择。 */
+  --kits-radius-sm: 1px;
+  --kits-radius-md: 2px;
+  --kits-radius-lg: 3px;
+  --kits-radius-surface: 2px;
+  --kits-radius-control: 2px;
+  --kits-radius-avatar: 2px;
+
+  /* BORDER TREATMENT · hard-technical
+   * **每一块都有边界**。这是 instrument 与另外两套最大的结构差异：
+   * 面板靠 1px 实线分格，像机柜里的模块。 */
+  --kits-border-width: 1px;
+  --kits-border-width-strong: 2px;
+  --kits-border-style: solid;
+  --kits-border-hairline-color: var(--kits-color-rule);
+  --kits-border-color: var(--kits-border-hairline-color);
+
+  /* SURFACE TREATMENT · panel
+   * 平面、无投影、无玻璃。表面间靠 1px 线与底色差区分。
+   * 扫描线纹理（0.02 透明度，repeating-linear-gradient，周期 4px）。 */
+  --kits-surface-shadow: none;
+  --kits-surface-backdrop: none;
+  --kits-scrim-strength: 0.06;
+  --kits-texture-image: repeating-linear-gradient(
+    0deg,
+    rgb(18 22 26 / 0.5) 0px,
+    rgb(18 22 26 / 0.5) 1px,
+    transparent 1px,
+    transparent 4px
+  );
+  --kits-texture-opacity: 0.02;
+  --kits-texture-blend: normal;
+
+  /* NAVIGATION FEEL · rail-console
+   * 导航 = 左侧机架轨道：竖直、紧凑、每项一个固定宽度，
+   * 当前项用左侧 2px 实心条标记（不是光点，也不是下划线）。 */
+  --kits-nav-height: 2.5rem;
+  --kits-nav-gap: 0px;
+  --kits-nav-item-padding-x: calc(var(--kits-space-unit) * 3);
+  --kits-nav-indicator: var(--kits-color-accent);
+  --kits-nav-font-size: var(--kits-label-size);
+  --kits-nav-font-tracking: var(--kits-label-tracking);
+
+  /* DATA LANGUAGE · instrument-grid
+   * 网格是**刻度**（每 4 格一条实线），不是背景装饰。
+   * 线条 1px、mark 4px 方形、bar cap 0、无渐变、无发光。 */
+  --kits-data-series-1: var(--kits-color-accent);
+  --kits-data-series-2: var(--kits-color-accent-2);
+  --kits-data-series-3: #6b7280;
+  --kits-data-grid-color: rgb(18 22 26 / 0.12);
+  --kits-data-grid-width: 1px;
+  --kits-data-mark-size: 4px;
+  --kits-data-bar-cap: 0;
+
+  /* HIERARCHY · rule-and-label —— 层级来自线、刻度与标签，不来自空间也不来自光 */
+
+  /* 组件数值 */
+  --kits-hero-padding-block: calc(var(--kits-space-unit) * 8);
+  --kits-hero-gap: calc(var(--kits-space-unit) * 3);
+  --kits-hero-eyebrow-gap: calc(var(--kits-space-unit) * 2);
+  --kits-spotlight-size: 140px;
+  --kits-spotlight-opacity: 0.16;
+  --kits-spotlight-color: var(--kits-color-accent);
+  --kits-grid-cell: 32px;
+  --kits-grid-line-color: rgb(18 22 26 / 0.16);
+  --kits-grid-fade: 22%;
+  --kits-cursor-size: 4px;
+  --kits-cursor-ring-size: 22px; /* 小方形框，像取景框 */
+  --kits-cursor-color: var(--kits-color-accent);
+  --kits-cursor-ring-color: rgb(18 22 26 / 0.45);
+  --kits-reveal-blur: 0px;
+  --kits-reveal-distance: 4px;
+}
+
+/* -----------------------------------------------------------------------------
+ * 3. 排版规则
+ * -------------------------------------------------------------------------- */
+
+[data-kits-pack="instrument"] .kits-display {
+  font-family: var(--kits-font-display);
+  font-size: var(--kits-display-size);
+  line-height: var(--kits-display-line);
+  letter-spacing: var(--kits-display-tracking);
+  font-weight: var(--kits-display-weight);
+  text-transform: var(--kits-display-transform);
+  text-wrap: balance;
+  max-width: 30ch;
+}
+
+[data-kits-pack="instrument"] .kits-body {
+  font-family: var(--kits-font-body);
+  font-size: var(--kits-body-size);
+  line-height: var(--kits-body-line);
+  max-width: var(--kits-body-max-width);
+}
+
+[data-kits-pack="instrument"] .kits-label {
+  font-family: var(--kits-font-mono);
+  font-size: var(--kits-label-size);
+  letter-spacing: var(--kits-label-tracking);
+  text-transform: var(--kits-label-transform);
+  font-weight: var(--kits-label-weight);
+  color: var(--kits-color-ink-muted);
+}
+
+[data-kits-pack="instrument"] .kits-data {
+  font-family: var(--kits-font-mono);
+  font-size: var(--kits-data-size);
+  font-weight: var(--kits-data-weight);
+  letter-spacing: var(--kits-data-tracking);
+  font-variant-numeric: tabular-nums slashed-zero;
+  font-feature-settings: "zero" 1;
+}
+
+/* 仪表读数：带单位后缀与刻度条，读数本身就是控件 */
+[data-kits-pack="instrument"] .kits-readout {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--kits-space-2xs);
+  font-family: var(--kits-font-mono);
+  font-size: var(--kits-data-size);
+  font-weight: var(--kits-data-weight);
+  font-variant-numeric: tabular-nums slashed-zero;
+  padding-inline: var(--kits-space-2xs);
+  border-inline-start: var(--kits-border-width-strong) var(--kits-border-style)
+    var(--kits-color-accent);
+}
+
+[data-kits-pack="instrument"] .kits-lead {
+  font-size: var(--kits-body-size);
+  line-height: 1.5;
+  max-width: 68ch;
+}
+
+[data-kits-pack="instrument"] .kits-mark {
+  color: var(--kits-color-accent);
+  font-weight: 600;
+}
+
+/* -----------------------------------------------------------------------------
+ * 4. 表面：面板（带 1px 硬边界 + 极淡扫描线）
+ * -------------------------------------------------------------------------- */
+
+[data-kits-pack="instrument"] .kits-surface {
+  position: relative;
+  background-color: var(--kits-color-surface);
+  border: var(--kits-border-width) var(--kits-border-style)
+    var(--kits-border-color);
+  border-radius: var(--kits-radius-surface);
+  box-shadow: var(--kits-surface-shadow);
+}
+
+[data-kits-pack="instrument"] .kits-surface::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: var(--kits-texture-image);
+  opacity: var(--kits-texture-opacity);
+  mix-blend-mode: var(--kits-texture-blend);
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+/* 面板表头：一条 2px 实线 + 等宽大写标签，机柜铭牌的做法 */
+[data-kits-pack="instrument"] .kits-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--kits-space-sm);
+  padding: var(--kits-space-xs) var(--kits-space-sm);
+  border-bottom: var(--kits-border-width-strong) var(--kits-border-style)
+    var(--kits-color-rule-strong);
+  background: var(--kits-color-surface-sunken);
+  border-radius: var(--kits-radius-surface) var(--kits-radius-surface) 0 0;
+}
+
+[data-kits-pack="instrument"] .kits-rule {
+  border: 0;
+  border-top: var(--kits-border-width) var(--kits-border-style)
+    var(--kits-border-hairline-color);
+  margin: 0;
+}
+
+[data-kits-pack="instrument"] .kits-rule--short {
+  border-top: var(--kits-border-width-strong) var(--kits-border-style)
+    var(--kits-color-ink);
+  width: 2rem;
+  margin-bottom: var(--kits-space-xs);
+}
+
+/* 刻度线：装饰性的量尺背景，用于面板底部 */
+[data-kits-pack="instrument"] .kits-tick-rule {
+  height: 6px;
+  background-image: repeating-linear-gradient(
+    90deg,
+    var(--kits-color-rule) 0px,
+    var(--kits-color-rule) 1px,
+    transparent 1px,
+    transparent 8px
+  );
+}
+
+/* -----------------------------------------------------------------------------
+ * 5. 控件：方形、硬边界、无过渡装饰
+ * -------------------------------------------------------------------------- */
+
+[data-kits-pack="instrument"] .kits-control {
+  font-family: var(--kits-font-mono);
+  font-size: var(--kits-label-size);
+  letter-spacing: var(--kits-label-tracking);
+  text-transform: var(--kits-label-transform);
+  font-weight: var(--kits-label-weight);
+  height: var(--kits-control-height);
+  padding-inline: var(--kits-control-padding-x);
+  border-radius: var(--kits-radius-control);
+  border: var(--kits-border-width) var(--kits-border-style)
+    var(--kits-color-rule-strong);
+  background: var(--kits-color-surface-raised);
+  color: var(--kits-color-ink);
+  transition:
+    background-color var(--kits-dur-instant) var(--kits-ease-linear),
+    border-color var(--kits-dur-instant) var(--kits-ease-linear);
+}
+
+[data-kits-pack="instrument"] .kits-control:hover {
+  background: var(--kits-color-surface-sunken);
+  border-color: var(--kits-color-ink);
+}
+
+/* 按下即变色，没有位移 —— 仪器的按钮不会"跳起来" */
+[data-kits-pack="instrument"] .kits-control:active {
+  background: var(--kits-color-ink);
+  color: var(--kits-color-surface);
+}
+
+[data-kits-pack="instrument"] .kits-control--primary {
+  background: var(--kits-color-accent);
+  border-color: var(--kits-color-accent);
+  color: var(--kits-color-accent-ink);
+}
+
+[data-kits-pack="instrument"] .kits-control--primary:hover {
+  background: color-mix(in srgb, var(--kits-color-accent) 84%, black 16%);
+  border-color: color-mix(in srgb, var(--kits-color-accent) 84%, black 16%);
+}

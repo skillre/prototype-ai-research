@@ -1,0 +1,158 @@
+{
+  "id": "instrument",
+  "name": "Instrument",
+  "displayName": "工业仪表 · 刻度与读数",
+  "version": "0.1.0",
+  "status": "approved",
+  "type": "style",
+  "contractVersion": "1.0.0",
+  "summary": "用刻度、标签与硬边界分层，而不是用留白或光。等宽排版 + 高密度 + 1px 实线面板，适合「一屏要放很多必须被读准的数字」的产品。",
+  "oneLineFirstVisual": "整整一屏被 1px 实线切成网格的小面板，每个面板右上角是等宽大写标签，左下角是等宽大号读数。",
+  "recommendedFor": [
+    "运维 / 监控 / 可观测性面板（一屏 40+ 指标）",
+    "工业控制、设备状态、产线看板",
+    "量化交易与风控台（数字必须逐位对齐）",
+    "数据质量 / 管道健康度面板",
+    "工程工具：CI、构建、部署、日志分析",
+    "任何「数字本身就是内容」的界面"
+  ],
+  "avoidFor": [
+    "品牌营销页与内容型落地页",
+    "需要情绪与沉浸感的 AI 对话界面",
+    "面向非技术用户的产品（等宽 + 高密度会显得冷）",
+    "移动端为主的产品（高密度在 390px 下会变成不可读）",
+    "需要「一屏一个故事」的叙事型页面"
+  ],
+  "signatureComponents": [
+    "animated-grid",
+    "insight-reveal"
+  ],
+  "optionalComponents": [
+    "data-cursor"
+  ],
+  "discouragedComponents": [
+    "interactive-hero",
+    "spotlight-surface"
+  ],
+  "effects": [
+    "technical-grid",
+    "scanline-sweep"
+  ],
+  "designPrinciples": [
+    "每个数字都要能对齐：等宽字体 + tabular-nums + slashed-zero，逐位可比。",
+    "每个区块都有边界：1px 实线就是分格线，像机柜里的模块，不允许「靠感觉分区」。",
+    "层级用线与标签：面板有表头（2px 线 + 大写等宽标签），读数有左侧 2px 强调条。",
+    "密度是功能而不是妥协：28px 控件、32px 行高，一屏放得下 40+ 指标。",
+    "动效必须瞬时：≤220ms，linear 为主，无回弹，没有环境动画（仪表不呼吸）。",
+    "颜色只承担语义：工程蓝是主数据，琥珀是次级/告警，正负值用绿红，其余一律灰阶。",
+    "装饰必须可被理解为刻度：扫描线、刻度尺都是量尺，不是纹理。"
+  ],
+  "antiPatterns": [
+    "glassmorphism（玻璃与机柜互斥）",
+    "purple-gradient / 任何装饰性渐变（颜色必须携带语义）",
+    "neon-glow / bloom（光属于 cinematic）",
+    "drop-shadow-elevation（面板是平的，投影会破坏机械感）",
+    "soft-radius（半径 > 4px 会让仪表变成消费级 App）",
+    "display-font-on-data（读数用展示字体 = 无法逐位比对）",
+    "ambient-animation（无信息量的持续动画在监控面板上就是噪音与耗电）",
+    "bouncy-easing（回弹会让读数看起来不可信）",
+    "generous-whitespace（留白在这里是浪费：一屏就是一张表）",
+    "multi-hue-charts（超过 3 个数据系列 = 颜色失去语义）"
+  ],
+  "typography": {
+    "display": "等宽 600 字重，clamp 到 2.75rem，line-height 1.12，正字距 +0.02em",
+    "body": "等宽 0.8125rem / 1.45 —— 全站等宽是这套风格的签名（唯一例外：超长说明文本可用无衬线）",
+    "label": "等宽 0.625rem uppercase +0.12em（仪表铭牌）",
+    "data": "1.5rem 等宽，tabular-nums + slashed-zero（0 带斜杠，避免与 O 混淆）",
+    "note": "正字距 + 等宽让小字号在密集排布下仍可读；负字距会让读数粘连"
+  },
+  "profile": {
+    "typeVoice": "instrumental",
+    "spacingRhythm": "compact",
+    "density": "high",
+    "radiusPhilosophy": "square",
+    "borderTreatment": "hard-technical",
+    "surfaceTreatment": "panel",
+    "navigationFeel": "rail-console",
+    "dataLanguage": "instrument-grid",
+    "motionLanguage": "precise",
+    "hierarchyMethod": "rule-and-label"
+  },
+  "tokens": {
+    "cssVariables": "tokens.css",
+    "motionModule": "motion.ts",
+    "selector": "[data-kits-pack=\"instrument\"]",
+    "peakValues": {
+      "spaceUnit": "4px",
+      "sectionGap": "32px",
+      "radiusSurface": "2px",
+      "displaySizeMax": "2.75rem",
+      "displayLineHeight": "1.12",
+      "borderWidth": "1px",
+      "borderWidthStrong": "2px",
+      "controlHeight": "28px",
+      "rowHeight": "32px"
+    },
+    "colorScope": "[data-kits-pack] 作用域（不是 :root）—— 多 pack 可同页共存而不互相污染",
+    "ownedByPack": true
+  },
+  "motion": {
+    "language": "precise",
+    "roles": [
+      "enter",
+      "interact",
+      "data"
+    ],
+    "durationRange": "50–220ms",
+    "pointerFactor": 0.4,
+    "reducedMotion": "collapseTo 0ms；**不保留淡入**（状态切换必须瞬时可见）；颜色变化保留（它是状态信号）",
+    "mobile": "断点 640px；指针反馈关闭；无环境动效"
+  },
+  "performance": {
+    "classification": "A",
+    "cost": "静态 CSS；panel 纹理为 repeating-linear-gradient，无滤镜、无混合模式",
+    "jsRuntime": "0 KB",
+    "cssSize": "~5 KB（未压缩）",
+    "notes": [
+      "无 backdrop-filter、无 box-shadow、无 mix-blend-mode —— 三套里合成成本最低",
+      "扫描线纹理没有用 blend mode（改用极低 opacity），避免额外合成层",
+      "密集排布下要警惕的是 DOM 数量而不是样式：40+ 面板的节点数本身可能成为瓶颈"
+    ]
+  },
+  "ssrCompatible": true,
+  "mobileCompatible": true,
+  "reducedMotion": "supported",
+  "a11y": {
+    "minContrast": "ink #12161a on surface #f4f5f6 ≈ 16.8:1",
+    "mutedContrast": "ink-muted #5b6469 on surface #f4f5f6 ≈ 5.6:1",
+    "accentContrast": "accent #0b63c5 on surface #f4f5f6 ≈ 5.9:1（accent-ink on accent ≈ 6.2:1）",
+    "notes": [
+      "小字号（10px 标签）是这套风格的主要无障碍风险：标签必须加 letter-spacing，且不得承载唯一关键信息",
+      "等宽 10px uppercase 在 390px 视口下会退化为不可读 → 移动端必须降密度（见 mobile 段）",
+      "颜色语义（工程蓝/琥珀/绿/红）必须同时有文字或图标标注，不得仅靠颜色区分正负",
+      "slashed-zero 帮助区分 0 与 O，是密集读数场景的可读性措施而非装饰"
+    ]
+  },
+  "dependencies": [],
+  "source": {
+    "kind": "first-party",
+    "origin": "prototype-kits",
+    "license": "UNLICENSED (internal)",
+    "inspiration": [
+      "工业 HMI 面板与机柜铭牌的分格方式",
+      "Bloomberg Terminal 的等宽读数与语义色",
+      "Swiss 排版中的刻度与基线网格",
+      "Grafana / 观测类面板的密度取舍"
+    ],
+    "note": "不含任何第三方源码"
+  },
+  "files": {
+    "tokens": "tokens.css",
+    "motion": "motion.ts",
+    "index": "index.ts",
+    "readme": "README.md",
+    "skill": "SKILL.md"
+  },
+  "maintainer": "Prototype Factory",
+  "updatedAt": "2026-09-11"
+}

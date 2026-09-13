@@ -81,8 +81,23 @@ export type RelationOrder = 1 | 2 | 3 | 4
  * 「限定」和「反驳」的区别——前者限制结论的适用范围，后者直接对抗它。
  * 这两件事在界面上的分量完全不同，压成一个 `false` 就再也拿不回来了。
  *
- * 实际消费方是 `deriveClaimConfidence()`（`lib/research/projections.ts`）。
- * 本契约只**声明**角色，不重复实现计算。
+ * ## ⚠ 现状：`limiting` 是 declared semantic，当前没有消费方
+ *
+ * `deriveClaimConfidence()`（`lib/research/projections.ts`）**只消费 `supports`**。
+ * 也就是说：
+ *
+ * | role | 声明 | 当前是否真的影响强度 |
+ * |---|---|---|
+ * | `supporting` | supports | ✅ 是 |
+ * | `counter` | contradicts | ✅ 是（降一级） |
+ * | `limiting` | qualifies | ❌ **否** |
+ * | `neutral` | context | ✅ 是（不参与） |
+ *
+ * `qualifies` **应该**限制结论的适用范围，但那条规则还没有被写出来。这是一个
+ * **声明的意图**，不是一条被执行的规则——与 `Claim.kind` 同一类状态。
+ *
+ * 本契约只**声明**角色，不重复实现计算。补上限定逻辑时，规则、测试、以及
+ * 消费它的派生函数必须**一起**进来，而不是在这里先假装它已经生效。
  */
 export type ConfidenceRole =
   /** 支持结论。 */
@@ -133,10 +148,19 @@ export interface RelationA11y {
    * 视觉上的「逆流位置」感知到反驳，需要一个显式的句子。
    */
   claimAnnouncement?: string
-  /** 读到的优先级。与 `order` 一致：数字越小越先被读到。 */
-  priority: RelationOrder
 }
 
+/**
+ * 窄屏降级。
+ *
+ * **只描述语义，不描述画什么。** 390px 下到底出不出视觉连接线，是 Phase D 的
+ * layout / rendering 决定，不是稳定契约的一部分——这里曾经有一个
+ * `showsConnector: boolean`，它把一个布局决策写进了语义层。
+ *
+ * 窄屏能保证的是三件事：**词**（`labelTemplate` 里的 `{label}`）、**序**（`order`）、
+ * 以及**分组**（属于同一条论断的证据聚在一起）。有这三样，即使一个 pixel 都不画，
+ * 关系也读得出来。
+ */
 export interface RelationMobile {
   /**
    * 窄屏标签模板。占位符 `{label}` 与 `{locator}`。
@@ -144,8 +168,6 @@ export interface RelationMobile {
    * 模板必须含 `{label}` —— 窄屏不画线，「词 + 顺序」承担全部语义。
    */
   labelTemplate: string
-  /** 窄屏是否绘制装饰连线。除 `supports` 外全部为 false。 */
-  showsConnector: boolean
 }
 
 /** 一个 stance 的完整语义表达。 */
@@ -215,11 +237,9 @@ export const RELATION_CONTRACT: RelationContract = {
       labelPrefix: "反驳",
       accessibleNameTemplate: "{label} · {locator} · 原文：{text}",
       claimAnnouncement: "本条存在反驳证据",
-      priority: 1,
     },
     mobile: {
       labelTemplate: "{label} · {locator}",
-      showsConnector: false,
     },
   },
 
@@ -235,13 +255,11 @@ export const RELATION_CONTRACT: RelationContract = {
     a11y: {
       labelPrefix: "支持",
       accessibleNameTemplate: "{label} · {locator} · 原文：{text}",
-      priority: 2,
     },
     mobile: {
       labelTemplate: "{label} · {locator}",
       // 唯一在窄屏仍画线的 stance：「紧贴」是 supports 的形状语义，
       // 而它在单列布局里靠缩进对齐就能表达，成本为零。
-      showsConnector: true,
     },
   },
 
@@ -257,11 +275,9 @@ export const RELATION_CONTRACT: RelationContract = {
     a11y: {
       labelPrefix: "限定",
       accessibleNameTemplate: "{label} · {locator} · 原文：{text}",
-      priority: 3,
     },
     mobile: {
       labelTemplate: "{label} · {locator}",
-      showsConnector: false,
     },
   },
 
@@ -278,11 +294,9 @@ export const RELATION_CONTRACT: RelationContract = {
     a11y: {
       labelPrefix: "背景",
       accessibleNameTemplate: "{label} · {locator} · 原文：{text}",
-      priority: 4,
     },
     mobile: {
       labelTemplate: "{label} · {locator}",
-      showsConnector: false,
     },
   },
 }
@@ -491,12 +505,6 @@ export function validateRelationContract(registry: Partial<RelationContract>): R
       issues.push({
         code: "relation/a11y-template-missing-label",
         message: `${entry.stance} 的可访问名模板不含 {label}——关系词会被丢掉`,
-      })
-    }
-    if (entry.a11y.priority !== entry.order) {
-      issues.push({
-        code: "relation/a11y-priority-mismatch",
-        message: `${entry.stance} 的 a11y.priority 与 order 不一致`,
       })
     }
 

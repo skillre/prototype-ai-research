@@ -1,0 +1,441 @@
+{
+  "schemaVersion": 1,
+  "registryVersion": "0.1.1",
+  "generatedAt": "2026-09-13T14:17:13.830Z",
+  "source": {
+    "kind": "source-installation",
+    "repo": "prototype-kits",
+    "commit": "9988c958dd505459912120f2ffcd7cedd8895dae",
+    "dirty": false
+  },
+  "layout": {
+    "installedRoot": "lib/kits/installed",
+    "adapterRoot": "lib/kits/adapters",
+    "agentRoot": "lib/kits/.kits",
+    "lockFile": "lib/kits/kits.lock.json"
+  },
+  "compat": {
+    "declaredReactRange": "^18.0.0 || ^19.0.0",
+    "kitsTypesVersion": "19.3.0"
+  },
+  "assets": [
+    {
+      "id": "cli",
+      "type": "package",
+      "version": "0.1.1",
+      "status": "approved",
+      "apiVersion": "1.0.0",
+      "files": [
+        {
+          "path": "lib/kits/.kits/kits.mjs",
+          "checksum": "1e9958a88f2ac8b4"
+        },
+        {
+          "path": "lib/kits/.kits/lib/adapters.mjs",
+          "checksum": "ad796921bcbf4817"
+        },
+        {
+          "path": "lib/kits/.kits/lib/boundary.mjs",
+          "checksum": "ef7d43d549f19f49"
+        },
+        {
+          "path": "lib/kits/.kits/lib/compat.mjs",
+          "checksum": "b33403e6a5de29d9"
+        },
+        {
+          "path": "lib/kits/.kits/lib/errors.mjs",
+          "checksum": "c535ad14b8bf0524"
+        },
+        {
+          "path": "lib/kits/.kits/lib/installer.mjs",
+          "checksum": "14e306e68ddbe048"
+        },
+        {
+          "path": "lib/kits/.kits/lib/lock.mjs",
+          "checksum": "3af1502d36aaf479"
+        },
+        {
+          "path": "lib/kits/.kits/lib/packaging.mjs",
+          "checksum": "da15bc0dbbf8469e"
+        },
+        {
+          "path": "lib/kits/.kits/lib/registry.mjs",
+          "checksum": "d1cbb2033e9652fd"
+        },
+        {
+          "path": "lib/kits/.kits/README.md",
+          "checksum": "4672202e5eba1f16"
+        }
+      ]
+    },
+    {
+      "id": "contracts",
+      "type": "package",
+      "version": "0.1.1",
+      "status": "approved",
+      "apiVersion": "1.0.0",
+      "files": [
+        {
+          "path": "lib/kits/installed/contracts/contract.ts",
+          "checksum": "8bfa2909c4f898ef"
+        },
+        {
+          "path": "lib/kits/installed/contracts/index.ts",
+          "checksum": "aa823f32822b652b"
+        },
+        {
+          "path": "lib/kits/installed/contracts/README.md",
+          "checksum": "a5b0fd89d596c04f"
+        },
+        {
+          "path": "lib/kits/installed/contracts/tokens.css",
+          "checksum": "5ecf4a2bcc385cee"
+        }
+      ]
+    },
+    {
+      "id": "data-cursor",
+      "type": "component",
+      "version": "0.1.0",
+      "status": "approved",
+      "apiVersion": "1.0.0",
+      "files": [
+        {
+          "path": "lib/kits/installed/data-cursor/data-cursor.css",
+          "checksum": "e788350f84f395a6"
+        },
+        {
+          "path": "lib/kits/installed/data-cursor/data-cursor.tsx",
+          "checksum": "9dc387476208eefe"
+        },
+        {
+          "path": "lib/kits/installed/data-cursor/index.ts",
+          "checksum": "b8dbae7bd62fb2f0"
+        },
+        {
+          "path": "lib/kits/installed/data-cursor/manifest.json",
+          "checksum": "dcd23a89e36618ff"
+        },
+        {
+          "path": "lib/kits/installed/data-cursor/README.md",
+          "checksum": "6dd713a1dec1147e"
+        }
+      ]
+    },
+    {
+      "id": "insight-reveal",
+      "type": "component",
+      "version": "0.1.1",
+      "status": "approved",
+      "apiVersion": "1.0.0",
+      "files": [
+        {
+          "path": "lib/kits/installed/insight-reveal/index.ts",
+          "checksum": "acbda8922be189b0"
+        },
+        {
+          "path": "lib/kits/installed/insight-reveal/insight-reveal.css",
+          "checksum": "9bc4b70c534e515f"
+        },
+        {
+          "path": "lib/kits/installed/insight-reveal/insight-reveal.tsx",
+          "checksum": "b7a92ab495ce4ae3"
+        },
+        {
+          "path": "lib/kits/installed/insight-reveal/manifest.json",
+          "checksum": "2f5980bb6903cd1c"
+        },
+        {
+          "path": "lib/kits/installed/insight-reveal/README.md",
+          "checksum": "980826585aedabe6"
+        }
+      ]
+    },
+    {
+      "id": "instrument",
+      "type": "style",
+      "version": "0.1.0",
+      "status": "approved",
+      "apiVersion": null,
+      "files": [
+        {
+          "path": "lib/kits/installed/instrument/index.ts",
+          "checksum": "ffb9e58252d961e5"
+        },
+        {
+          "path": "lib/kits/installed/instrument/manifest.json",
+          "checksum": "a31482813ceda6c6"
+        },
+        {
+          "path": "lib/kits/installed/instrument/motion.ts",
+          "checksum": "24d9d44ea5e6a6c7"
+        },
+        {
+          "path": "lib/kits/installed/instrument/README.md",
+          "checksum": "1346ff2a842ce216"
+        },
+        {
+          "path": "lib/kits/installed/instrument/SKILL.md",
+          "checksum": "9323ebf687480125"
+        },
+        {
+          "path": "lib/kits/installed/instrument/tokens.css",
+          "checksum": "b0c85041c105b831"
+        }
+      ]
+    },
+    {
+      "id": "react-utils",
+      "type": "package",
+      "version": "0.1.0",
+      "status": "approved",
+      "apiVersion": "1.0.0",
+      "files": [
+        {
+          "path": "lib/kits/installed/react-utils/contract.ts",
+          "checksum": "34dfad0239454221"
+        },
+        {
+          "path": "lib/kits/installed/react-utils/env.ts",
+          "checksum": "7d49664d9df7af4c"
+        },
+        {
+          "path": "lib/kits/installed/react-utils/index.ts",
+          "checksum": "ac99cba482f4e30d"
+        },
+        {
+          "path": "lib/kits/installed/react-utils/README.md",
+          "checksum": "2cf13978474aa659"
+        },
+        {
+          "path": "lib/kits/installed/react-utils/use-element-pointer.ts",
+          "checksum": "5c2b6574b45a7f2d"
+        },
+        {
+          "path": "lib/kits/installed/react-utils/use-parallax-layers.ts",
+          "checksum": "e54657eb5deab3e5"
+        },
+        {
+          "path": "lib/kits/installed/react-utils/use-reveal.ts",
+          "checksum": "217b03dfa191f58d"
+        }
+      ]
+    }
+  ],
+  "dependencies": [
+    {
+      "from": "instrument",
+      "to": "contracts",
+      "requirement": "*"
+    },
+    {
+      "from": "insight-reveal",
+      "to": "react-utils",
+      "requirement": "*"
+    },
+    {
+      "from": "data-cursor",
+      "to": "react-utils",
+      "requirement": "*"
+    }
+  ],
+  "files": [
+    {
+      "path": "lib/kits/.kits/kits.mjs",
+      "checksum": "1e9958a88f2ac8b4",
+      "assetId": "cli"
+    },
+    {
+      "path": "lib/kits/.kits/lib/adapters.mjs",
+      "checksum": "ad796921bcbf4817",
+      "assetId": "cli"
+    },
+    {
+      "path": "lib/kits/.kits/lib/boundary.mjs",
+      "checksum": "ef7d43d549f19f49",
+      "assetId": "cli"
+    },
+    {
+      "path": "lib/kits/.kits/lib/compat.mjs",
+      "checksum": "b33403e6a5de29d9",
+      "assetId": "cli"
+    },
+    {
+      "path": "lib/kits/.kits/lib/errors.mjs",
+      "checksum": "c535ad14b8bf0524",
+      "assetId": "cli"
+    },
+    {
+      "path": "lib/kits/.kits/lib/installer.mjs",
+      "checksum": "14e306e68ddbe048",
+      "assetId": "cli"
+    },
+    {
+      "path": "lib/kits/.kits/lib/lock.mjs",
+      "checksum": "3af1502d36aaf479",
+      "assetId": "cli"
+    },
+    {
+      "path": "lib/kits/.kits/lib/packaging.mjs",
+      "checksum": "da15bc0dbbf8469e",
+      "assetId": "cli"
+    },
+    {
+      "path": "lib/kits/.kits/lib/registry.mjs",
+      "checksum": "d1cbb2033e9652fd",
+      "assetId": "cli"
+    },
+    {
+      "path": "lib/kits/.kits/README.md",
+      "checksum": "4672202e5eba1f16",
+      "assetId": "cli"
+    },
+    {
+      "path": "lib/kits/installed/contracts/contract.ts",
+      "checksum": "8bfa2909c4f898ef",
+      "assetId": "contracts"
+    },
+    {
+      "path": "lib/kits/installed/contracts/index.ts",
+      "checksum": "aa823f32822b652b",
+      "assetId": "contracts"
+    },
+    {
+      "path": "lib/kits/installed/contracts/README.md",
+      "checksum": "a5b0fd89d596c04f",
+      "assetId": "contracts"
+    },
+    {
+      "path": "lib/kits/installed/contracts/tokens.css",
+      "checksum": "5ecf4a2bcc385cee",
+      "assetId": "contracts"
+    },
+    {
+      "path": "lib/kits/installed/data-cursor/data-cursor.css",
+      "checksum": "e788350f84f395a6",
+      "assetId": "data-cursor"
+    },
+    {
+      "path": "lib/kits/installed/data-cursor/data-cursor.tsx",
+      "checksum": "9dc387476208eefe",
+      "assetId": "data-cursor"
+    },
+    {
+      "path": "lib/kits/installed/data-cursor/index.ts",
+      "checksum": "b8dbae7bd62fb2f0",
+      "assetId": "data-cursor"
+    },
+    {
+      "path": "lib/kits/installed/data-cursor/manifest.json",
+      "checksum": "dcd23a89e36618ff",
+      "assetId": "data-cursor"
+    },
+    {
+      "path": "lib/kits/installed/data-cursor/README.md",
+      "checksum": "6dd713a1dec1147e",
+      "assetId": "data-cursor"
+    },
+    {
+      "path": "lib/kits/installed/insight-reveal/index.ts",
+      "checksum": "acbda8922be189b0",
+      "assetId": "insight-reveal"
+    },
+    {
+      "path": "lib/kits/installed/insight-reveal/insight-reveal.css",
+      "checksum": "9bc4b70c534e515f",
+      "assetId": "insight-reveal"
+    },
+    {
+      "path": "lib/kits/installed/insight-reveal/insight-reveal.tsx",
+      "checksum": "b7a92ab495ce4ae3",
+      "assetId": "insight-reveal"
+    },
+    {
+      "path": "lib/kits/installed/insight-reveal/manifest.json",
+      "checksum": "2f5980bb6903cd1c",
+      "assetId": "insight-reveal"
+    },
+    {
+      "path": "lib/kits/installed/insight-reveal/README.md",
+      "checksum": "980826585aedabe6",
+      "assetId": "insight-reveal"
+    },
+    {
+      "path": "lib/kits/installed/instrument/index.ts",
+      "checksum": "ffb9e58252d961e5",
+      "assetId": "instrument"
+    },
+    {
+      "path": "lib/kits/installed/instrument/manifest.json",
+      "checksum": "a31482813ceda6c6",
+      "assetId": "instrument"
+    },
+    {
+      "path": "lib/kits/installed/instrument/motion.ts",
+      "checksum": "24d9d44ea5e6a6c7",
+      "assetId": "instrument"
+    },
+    {
+      "path": "lib/kits/installed/instrument/README.md",
+      "checksum": "1346ff2a842ce216",
+      "assetId": "instrument"
+    },
+    {
+      "path": "lib/kits/installed/instrument/SKILL.md",
+      "checksum": "9323ebf687480125",
+      "assetId": "instrument"
+    },
+    {
+      "path": "lib/kits/installed/instrument/tokens.css",
+      "checksum": "b0c85041c105b831",
+      "assetId": "instrument"
+    },
+    {
+      "path": "lib/kits/installed/react-utils/contract.ts",
+      "checksum": "34dfad0239454221",
+      "assetId": "react-utils"
+    },
+    {
+      "path": "lib/kits/installed/react-utils/env.ts",
+      "checksum": "7d49664d9df7af4c",
+      "assetId": "react-utils"
+    },
+    {
+      "path": "lib/kits/installed/react-utils/index.ts",
+      "checksum": "ac99cba482f4e30d",
+      "assetId": "react-utils"
+    },
+    {
+      "path": "lib/kits/installed/react-utils/README.md",
+      "checksum": "2cf13978474aa659",
+      "assetId": "react-utils"
+    },
+    {
+      "path": "lib/kits/installed/react-utils/use-element-pointer.ts",
+      "checksum": "5c2b6574b45a7f2d",
+      "assetId": "react-utils"
+    },
+    {
+      "path": "lib/kits/installed/react-utils/use-parallax-layers.ts",
+      "checksum": "e54657eb5deab3e5",
+      "assetId": "react-utils"
+    },
+    {
+      "path": "lib/kits/installed/react-utils/use-reveal.ts",
+      "checksum": "217b03dfa191f58d",
+      "assetId": "react-utils"
+    }
+  ],
+  "adapters": {
+    "templateVersion": "0.1.1",
+    "written": [
+      "lib/kits/adapters/style-instrument.css",
+      "lib/kits/adapters/style-instrument.ts",
+      "lib/kits/adapters/style-pack.ts",
+      "lib/kits/adapters/insight-reveal.tsx",
+      "lib/kits/adapters/data-cursor.tsx",
+      "lib/kits/adapters/README.md"
+    ],
+    "kept": []
+  }
+}

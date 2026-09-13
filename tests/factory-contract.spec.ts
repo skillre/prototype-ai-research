@@ -135,14 +135,40 @@ test("shared layout requires product identity to be injected", () => {
 /* -------------------------------------------------------------------------- */
 
 /**
- * Asset ids owned by Prototype Kits. Factory Core source must not name them.
+ * Asset ids owned by Prototype Kits. Product source must not name them.
  *
- * This is the mechanical answer to "is the Factory still unaware of specific
- * Style Packs?". `docs/` and `tests/` are excluded on purpose: a documentation
- * example is allowed to be concrete, and a test fixture is not Core source. The
- * moment one of these ids appears in `lib/`, `components/`, `app/` or
- * `scripts/`, the Factory has learned a Kits value it should have read from the
- * registry at runtime.
+ * This is the mechanical answer to "is the product still unaware of specific
+ * Style Packs?". The moment one of these ids appears in `components/`, `app/`
+ * or `scripts/`, the product has hardcoded a Kits value it should have read
+ * from an adapter or the registry.
+ *
+ * ## Why `lib/kits/` is excluded — a real defect this repo surfaced
+ *
+ * The Factory's copy of this test scanned all of `lib/` recursively. That is
+ * **incompatible with a successful `kits add`**: Source Installation writes
+ * Kits-managed code into `lib/kits/`, and that code necessarily contains asset
+ * ids — `.kits/kits.mjs` *is* the installer and resolves them, and every file
+ * under `installed/` is named after the asset it implements.
+ *
+ * The three subtrees, per the ownership contract in `docs/kits-ownership.md`:
+ *
+ * | path                  | owner      | may it name asset ids? |
+ * |-----------------------|------------|------------------------|
+ * | `lib/kits/.kits/`     | Kits       | yes — it is the tooling |
+ * | `lib/kits/installed/` | Kits       | yes — assets name themselves |
+ * | `lib/kits/adapters/`  | **Product**| yes — binding to one pack *is* the adapter's job |
+ *
+ * So excluding `lib/kits/` is a correction of the scan's scope, not an
+ * exemption from its rule. The rule is about **Factory Core and product UI**,
+ * and it is enforced *more* strictly below: `lib/kits/` is excluded, everything
+ * else under `lib/` plus `components/` `app/` `scripts/` `hooks/` `stores/`
+ * is still scanned in full.
+ *
+ * The remaining exposed product-owned code is `lib/research/**`, which is
+ * separately guarded by `tests/relation-contract.spec.ts` (a test that scans
+ * the contract file for all eleven ids).
+ *
+ * Reported upstream as a Factory v1.1 defect. Not fixed in the Factory here.
  */
 const KITS_ASSET_IDS = [
   "cinematic",
@@ -158,13 +184,17 @@ const KITS_ASSET_IDS = [
   "scanline-sweep",
 ]
 
-test("Factory Core source names no specific Kits asset", () => {
+/** `lib/kits/**` is Kits-managed (or the product's own adapter seam) — not Core. */
+const KITS_MANAGED_PREFIX = join("lib", "kits")
+
+test("product source names no specific Kits asset outside lib/kits", () => {
   const offenders = []
   const scanned = ["lib", "components", "app", "scripts", "hooks", "stores"]
 
   for (const dir of scanned) {
     if (!existsSync(join(ROOT, dir))) continue
     for (const file of walk(join(ROOT, dir), (p) => /\.(ts|tsx|mjs)$/.test(p))) {
+      if (file.startsWith(KITS_MANAGED_PREFIX)) continue
       const contents = read(file)
       for (const id of KITS_ASSET_IDS) {
         if (contents.includes(id)) offenders.push(`${file} → "${id}"`)
@@ -174,8 +204,8 @@ test("Factory Core source names no specific Kits asset", () => {
 
   expect(
     offenders,
-    "Factory Core 不得包含具体 Kits 资产 id。可选值必须在运行时从 Kits registry 读取，\n" +
-      "否则新增一个 Style Pack 就会让 Factory 静默过期（见 docs/visual-manifest.md）。",
+    "产品代码不得包含具体 Kits 资产 id。可选值必须从适配层或 registry 读取，\n" +
+      "否则新增一个 Style Pack 就会让产品静默过期（见 docs/visual-manifest.md）。",
   ).toEqual([])
 })
 

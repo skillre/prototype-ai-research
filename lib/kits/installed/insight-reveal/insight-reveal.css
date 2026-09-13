@@ -1,0 +1,229 @@
+/* =============================================================================
+ * InsightReveal —— 结构样式
+ *
+ * 输入（全部来自 Style Pack）：
+ *   --kits-reveal-distance   揭示位移（10 / 24 / 4px）
+ *   --kits-reveal-blur       景深模糊（editorial 0 / cinematic 6px / instrument 0）
+ *   --kits-reveal-stagger    步进间隔（editorial 70ms / cinematic 110ms / instrument 25ms）
+ *   --kits-dur-base          单段时长
+ *   --kits-ease-out          揭示缓动
+ *
+ * ============================================================================
+ * 两种揭示粒度
+ * ============================================================================
+ *   step="one"    整体揭示 —— 直接作用于子元素。
+ *   step="group"  逐段揭示 —— 组件为每个直接子元素建立一层宿主
+ *                 `.kits-reveal__item`，序号写在**宿主**上。
+ *
+ * 为什么 group 需要宿主（本文件与 .tsx 一起说明这件事）：
+ * 旧实现用 cloneElement 把 `--kits-reveal-index` 塞进子元素的 style，
+ * 这要求消费方的子元素把 style 转发到自己的宿主元素 —— 而产品里的子元素
+ * 通常是自定义组件，于是变量被静默丢弃，步进彻底失效且没有任何报错。
+ * 组件不应当依赖消费方配合才能工作，因此序号改由组件自己建立的宿主承载：
+ * DOM 里一定存在带序号的元素。
+ *
+ * ============================================================================
+ * 三层降级（本文件的重点）
+ * ============================================================================
+ *   第 1、2 层在 JS（use-reveal.ts）：
+ *     无 IntersectionObserver / reduced-motion → 立即 data-kits-visible="true"
+ *   第 3 层在这里：
+ *     内容**默认可见**，只有"已动画 + 尚未进入视口"时才隐藏。
+ *     因此 JS 失败、脚本被禁用、观察器不触发时，内容依然完整可见。
+ *
+ * 这是必需的：如果"隐藏"是无条件的，"显示"依赖 JS，
+ * 那么一次脚本错误就会让整页内容变成空白。
+ * ========================================================================== */
+
+.kits-reveal {
+  /* 静止状态：完全可见。所有隐藏规则都必须带上 .kits-reveal--animated */
+  opacity: 1;
+}
+
+/* -----------------------------------------------------------------------------
+ * group 宿主：对布局不可见
+ *
+ * `display: contents` 让宿主不生成盒子，其子元素直接参与父级布局 ——
+ * 因此 flex 的间距、grid 的列数、ol/ul 的列表语义都与"没有这一层"时一致。
+ *
+ * 关键约束：`display: contents` 的元素**不生成盒子，因此 transform 无效**。
+ * 而揭示的位移必须被看见。因此：
+ *   - 透明度作用在宿主上（opacity 作用于子树绘制，display:contents 下仍然生效）
+ *   - 位移与模糊作用在宿主的**子树根**（`.kits-reveal__item > *`）上
+ * 这与 step="one" 的行为一致（那也是作用在子元素本身）。
+ *
+ * 无障碍：display:contents 让宿主不生成盒子，后代照常暴露；
+ * 宿主另带 role="presentation"（它是纯装饰的步进容器，不承载语义），
+ * 因此不会多出一个匿名节点，也不会让屏幕阅读器多读一层。
+ *
+ * ⚠️ 宿主**不得**使用 aria-hidden。aria-hidden 会剪掉整棵子树，
+ * 而宿主里包的是真实内容（heading / button / link / listitem）。
+ * v0.1.0 用过 aria-hidden="true"，代价是整个洞察层从无障碍树消失：
+ * getByRole("button") 命中 0，而 DOM 里按钮明明在。见 CHANGELOG K-01。
+ * -------------------------------------------------------------------------- */
+
+.kits-reveal--group > .kits-reveal__item {
+  display: contents;
+}
+
+/* -----------------------------------------------------------------------------
+ * 已动画 + 尚未揭示 → 隐藏
+ *
+ * 选择器用 `:where()` 包住 `> .kits-reveal__item` 分支，让它保持在
+ * 与 `> *` 相同的特异性（0-1-0），避免 group 模式因为特异性更高而
+ * 意外压过后面基于 `> *` 的规则。
+ * -------------------------------------------------------------------------- */
+
+.kits-reveal--animated:not([data-kits-visible="true"]) {
+  opacity: 0;
+}
+
+.kits-reveal--animated:not([data-kits-visible="true"]):where(
+    [data-kits-step="group"]
+  )
+  > .kits-reveal__item,
+.kits-reveal--animated:not([data-kits-visible="true"]) > * {
+  opacity: 0;
+}
+
+.kits-reveal--animated[data-kits-visible="true"]:where([data-kits-step="group"])
+  > .kits-reveal__item,
+.kits-reveal--animated[data-kits-visible="true"] > * {
+  opacity: 1;
+}
+
+/* -----------------------------------------------------------------------------
+ * 位移：只在"已动画"模式下生效
+ *
+ * 位移量 = --kits-reveal-distance × --kits-reveal-shift-scale
+ * 档位（shift prop）只改乘数，绝对距离由 pack 决定。
+ *
+ * group 模式作用在宿主的子树根上（宿主是 display:contents，自身不吃 transform），
+ * one 模式直接作用在子元素上 —— 两者的视觉结果相同。
+ * -------------------------------------------------------------------------- */
+
+.kits-reveal--animated.kits-reveal--shift:not([data-kits-visible="true"]):where(
+    [data-kits-step="group"]
+  )
+  > .kits-reveal__item
+  > *,
+.kits-reveal--animated.kits-reveal--shift:not([data-kits-visible="true"]) > * {
+  transform: translate3d(
+    0,
+    calc(var(--kits-reveal-distance) * var(--kits-reveal-shift-scale, 1)),
+    0
+  );
+}
+
+/* -----------------------------------------------------------------------------
+ * 景深模糊（cinematic 的"从远到近"）
+ *
+ * 用 filter 而不是 backdrop-filter：元素自身虚化，不清算背景。
+ * 注意：filter 会创建合成层；只对直接子元素的揭示阶段生效，
+ * 揭示完成后（opacity: 1）filter 归零，层数回落。
+ * -------------------------------------------------------------------------- */
+
+.kits-reveal--animated.kits-reveal--blur:not([data-kits-visible="true"]):where(
+    [data-kits-step="group"]
+  )
+  > .kits-reveal__item
+  > *,
+.kits-reveal--animated.kits-reveal--blur:not([data-kits-visible="true"]) > * {
+  filter: blur(var(--kits-reveal-blur));
+}
+
+/* -----------------------------------------------------------------------------
+ * 过渡与步进
+ *
+ * 步进延迟 = 序号 × --kits-reveal-stagger。序号由组件写在宿主的
+ * --kits-reveal-index 上（0..maxStagger）—— 序号一定存在，因为宿主是
+ * 组件自己建立的。
+ * -------------------------------------------------------------------------- */
+
+.kits-reveal--animated:where([data-kits-step="group"]) > .kits-reveal__item > *,
+.kits-reveal--animated > * {
+  transition:
+    opacity var(--kits-dur-base) var(--kits-ease-out),
+    transform var(--kits-dur-slow) var(--kits-ease-out),
+    filter var(--kits-dur-base) var(--kits-ease-out);
+  /* 步进延迟：序号（组件写入）× 步进间隔（pack 决定）。
+     两者相乘，因此产品改不了"节奏"，pack 改不了"顺序"。 */
+  transition-delay: calc(
+    var(--kits-reveal-index, 0) * var(--kits-stagger-step)
+  );
+  /* 位移与模糊只在揭示过程中产生层；提示浏览器提前准备 */
+  will-change: opacity, transform;
+}
+
+.kits-reveal--animated[data-kits-visible="true"]:where(
+    [data-kits-step="group"]
+  )
+  > .kits-reveal__item
+  > *,
+.kits-reveal--animated[data-kits-visible="true"] > * {
+  /* 揭示完成后释放合成资源 */
+  will-change: auto;
+}
+
+/* step="one"：整体揭示，不做步进 */
+.kits-reveal[data-kits-step="one"] > * {
+  transition-delay: 0ms;
+}
+
+/* -----------------------------------------------------------------------------
+ * 第 3 层降级：脚本不可用
+ *
+ * 部分浏览器支持 `scripting: none` 媒体查询；不支持的浏览器上，
+ * 由于 JS 没跑起来，组件根本不会添加 .kits-reveal--animated 类，
+ * 因此内容同样是可见的（这是上面规则设计的结果，不需要额外兜底）。
+ * 这条规则是给"支持该查询但脚本被策略阻止"的场景补的最后一层保险。
+ * -------------------------------------------------------------------------- */
+
+@media (scripting: none) {
+  .kits-reveal,
+  .kits-reveal > .kits-reveal__item,
+  .kits-reveal > .kits-reveal__item > *,
+  .kits-reveal > * {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+}
+
+/* -----------------------------------------------------------------------------
+ * 移动端与 reduced-motion
+ *
+ * CSS 层的兜底（JS 层已经有对应处理）：
+ *   - 触屏：揭示动画偏"轻"（位移减半），避免滚动时元素来回抖动
+ *   - reduced-motion：完全取消位移与模糊，只保留 opacity
+ * -------------------------------------------------------------------------- */
+
+@media (hover: none), (pointer: coarse) {
+  .kits-reveal--animated.kits-reveal--shift:not([data-kits-visible="true"]):where(
+      [data-kits-step="group"]
+    )
+    > .kits-reveal__item
+    > *,
+  .kits-reveal--animated.kits-reveal--shift:not([data-kits-visible="true"]) > * {
+    transform: translate3d(
+      0,
+      calc(
+        var(--kits-reveal-distance) * var(--kits-reveal-shift-scale, 1) * 0.5
+      ),
+      0
+    );
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kits-reveal--animated:where([data-kits-step="group"])
+    > .kits-reveal__item
+    > *,
+  .kits-reveal--animated > * {
+    transition:
+      opacity var(--kits-dur-base) var(--kits-ease-out);
+    transition-delay: 0ms;
+    transform: none !important;
+    filter: none !important;
+  }
+}

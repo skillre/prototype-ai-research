@@ -1,0 +1,145 @@
+{
+  "id": "data-cursor",
+  "name": "DataCursor",
+  "version": "0.1.0",
+  "status": "approved",
+  "type": "component",
+  "apiVersion": "1.0.0",
+
+  "summary": "跟随指针的数据指示器：把系统光标换成有语义的探针，悬停在标记元素上时显示读数标签。系统光标只在被标记的区域内隐藏。",
+  "purpose": "让「指针即探针」成为一种可插拔的视觉资产 —— 数据密集界面里，用户不需要点开就能读到数值。",
+
+  "internalApi": {
+    "component": "DataCursor",
+    "props": {
+      "mode": { "type": "\"dot\" | \"ring\" | \"crosshair\"", "default": "ring", "note": "形态；绝对尺寸来自 --kits-cursor-size / --kits-cursor-ring-size" },
+      "inspection": { "type": "boolean", "default": true, "note": "是否解析 data-cursor / data-cursor-label" },
+      "hideNative": { "type": "boolean", "default": true, "note": "仅隐藏标记区域内的系统光标" },
+      "zIndex": { "type": "number", "default": 60 },
+      "children": { "type": "ReactNode", "required": true },
+      "disableMotion": { "type": "boolean", "default": false },
+      "className": { "type": "string" }
+    },
+    "domContract": {
+      "data-cursor": "\"inspect\" | \"interactive\" —— 标记可被读取/可交互的元素",
+      "data-cursor-label": "字符串（组件截断至 48 字符）—— 悬停时显示的读数"
+    },
+    "explicitlyNotExposed": [
+      "size / diameter",
+      "color / ringColor / labelColor",
+      "lerp / spring / followSpeed",
+      "blendMode",
+      "任何视觉字面量"
+    ],
+    "example": "<DataCursor mode=\"ring\"><button data-cursor=\"inspect\" data-cursor-label=\"P99 · 184ms\">…</button></DataCursor>"
+  },
+
+  "adapter": {
+    "required": true,
+    "reason": "光标类第三方库（各类 custom-cursor / magnetic-cursor）通常暴露 size/color/lerp/blendMode 等实现参数，直接使用会把视觉与手感写死在产品里。",
+    "pattern": "External Component → Adapter → 内部稳定 API → Product",
+    "currentImplementation": "first-party（无第三方依赖）",
+    "swapInThirdParty": [
+      "1. 第三方资产放入 incoming/components/ 走完整审计流程",
+      "2. 在 adapters/ 下把其 size/color/lerp 映射为 --kits-cursor-* 变量与 useElementPointer 的能力探测",
+      "3. 保留 domContract（data-cursor / data-cursor-label）不变 —— 这是产品唯一依赖的接口",
+      "4. 产品代码零改动"
+    ]
+  },
+
+  "apiStability": {
+    "breakingChangePolicy": "破坏性变更升 major；data-cursor 属性约定属于 API，改动同样需要升 major",
+    "additiveChangePolicy": "新增 mode 属于 minor；新增视觉 prop 属于**违规**"
+  },
+
+  "dependencies": [],
+  "thirdPartyRuntime": "none",
+  "bundleSize": "≈1.5 KB gzip（React 外置）",
+  "performance": {
+    "classification": "B",
+    "cost": "每次 pointermove 写 2 个元素的 CSS 自定义属性（rAF 合并），并为每次移动做一次 closest() 查询",
+    "notes": [
+      "写入被 requestAnimationFrame 合并：一帧最多写一次，无论 pointermove 触发多少次",
+      "closest('[data-cursor]') 在 pointermove 上执行 —— 复杂度与祖先链长度成正比，不是全文档查询",
+      "未激活时**不渲染**指示器节点：不会留下零个不可见的合成层",
+      "will-change: transform 常驻在指示器上（只有 2 个节点，代价可接受）"
+    ]
+  },
+
+  "ssrCompatible": true,
+  "ssrNotes": [
+    "服务端渲染的 HTML 里**没有指示器节点**（active 依赖 mounted），客户端挂载后才出现 → 首帧一致，无 hydration mismatch",
+    "系统光标保持默认形态直到客户端挂载完成 —— 服务端产物永远是可用的",
+    "不读取 window/document 于渲染期",
+    "pointermove 监听绑定在 window 上，在 useEffect 内注册/注销"
+  ],
+
+  "mobileCompatible": true,
+  "mobileFallback": {
+    "trigger": "(hover: none) or (pointer: coarse)",
+    "behavior": [
+      "组件完全不激活：不注册 pointermove，不渲染指示器，**不隐藏系统光标**",
+      "data-cursor / data-cursor-label 标记保留在 DOM 中但无效果 —— 它们只承载增强信息，隐藏后不影响任何功能",
+      "读数信息必须同时存在于可见文本中（见 a11y）→ 触屏用户零信息损失",
+      "CSS 层另有 @media 兜底：即使激活状态被误判，触屏下也会恢复 cursor: auto"
+    ],
+    "noContentLoss": true
+  },
+
+  "reducedMotion": {
+    "behavior": [
+      "组件不激活：不渲染指示器，系统光标照常显示",
+      "标签信息不丢失 —— 它同时存在于可见文本里（这是契约要求）",
+      "CSS 层另有 @media 兜底：transition 全部置 none"
+    ],
+    "mechanism": "组件内建（useMotionAllowed）+ CSS 双保险"
+  },
+
+  "a11y": {
+    "notes": [
+      "指示器与标签全部 aria-hidden=\"true\"：屏幕阅读器只读 DOM 中的真实文本",
+      "**关键契约**：data-cursor-label 承载的信息必须同时存在于可见文本中。光标标签是增强，不是唯一信息载体",
+      "hideNative 只在标记区域内隐藏系统光标（[data-cursor] 后代），用户不会在任何地方「失去光标」",
+      "组件只在「精确指针 + 允许动效 + 已挂载」三条同时成立时激活 —— 三条任一不满足，系统光标完全正常",
+      "data-cursor=\"interactive\" 只是视觉反馈：真正的可交互语义必须由真实元素（button/a）提供",
+      "标签文本截断至 48 字符，避免撑破指示器；截断不是信息丢失（完整信息在 DOM 里）"
+    ],
+    "keyboard": "组件不参与键盘交互；键盘用户通过 Tab 到达真实控件并读取其可见文本",
+    "contrastResponsibility": "指示器颜色来自 --kits-cursor-color（pack 保证 ≥ 3:1 的非文本对比）；标签文本颜色同样来自 pack"
+  },
+
+  "usedByStylePacks": {
+    "cinematic": "signature（44px 青色环 + 完整跟随）",
+    "instrument": "optional（22px 方形取景框 + 适度跟随）",
+    "editorial": "discouraged（纸面界面不应劫持光标）"
+  },
+
+  "avoidFor": [
+    "editorial 页面（劫持系统光标与「纸」的隐喻冲突）",
+    "表单密集型页面（用户需要精确的文本光标来选中文字）",
+    "移动端为主的产品（组件在触屏上完全不激活，等于白引入）",
+    "任何需要精确文本选择的界面 —— 隐藏系统光标会破坏 I 形文本光标"
+  ],
+
+  "demo": "demo.tsx",
+  "readme": "README.md",
+  "files": {
+    "implementation": "data-cursor.tsx",
+    "styles": "data-cursor.css",
+    "entry": "index.ts"
+  },
+
+  "source": {
+    "kind": "first-party",
+    "origin": "prototype-kits",
+    "license": "UNLICENSED (internal)",
+    "containsThirdPartyCode": false,
+    "inspiration": [
+      "数据可视化工具中「指针即探针」的通用交互模式",
+      "本实现为独立编写，未复制任何第三方源码"
+    ]
+  },
+
+  "maintainer": "Prototype Factory",
+  "updatedAt": "2026-09-11"
+}

@@ -1,0 +1,147 @@
+{
+  "id": "insight-reveal",
+  "name": "InsightReveal",
+  "version": "0.1.0",
+  "status": "approved",
+  "type": "component",
+  "apiVersion": "1.0.0",
+
+  "summary": "内容进入视口时按阅读顺序逐段揭示。它解决的不是「好看」，而是层级：把阅读顺序变成可见的节奏。三层降级保证 JS 失败时内容依然完整可见。",
+  "purpose": "长内容的阅读节奏是一种可插拔的视觉资产 —— 揭示粒度由产品决定，节奏由 Style Pack 决定。",
+
+  "internalApi": {
+    "component": "InsightReveal",
+    "props": {
+      "step": { "type": "\"one\" | \"group\"", "default": "group", "note": "整体揭示 / 按直接子元素逐段揭示" },
+      "shift": { "type": "\"none\" | \"subtle\" | \"medium\" | \"strong\"", "default": "medium", "note": "位移档位；绝对距离来自 --kits-reveal-distance" },
+      "blur": { "type": "boolean", "default": false, "note": "景深模糊；只有 cinematic 的 --kits-reveal-blur 非 0" },
+      "once": { "type": "boolean", "default": true, "note": "只揭示一次 / 离开视口复位" },
+      "as": { "type": "\"div\" | \"section\" | \"article\" | \"ol\" | \"ul\"", "default": "div" },
+      "maxStagger": { "type": "number", "default": 6, "note": "步进序号上限，避免第 20 段等太久" },
+      "children": { "type": "ReactNode", "required": true },
+      "disableMotion": { "type": "boolean", "default": false },
+      "className": { "type": "string" },
+      "id": { "type": "string" }
+    },
+    "domContract": {
+      "data-kits-visible": "\"true\" | \"false\" —— 揭示状态；CSS 依据它切换可见性",
+      "--kits-reveal-index": "直接子元素上的步进序号（0..maxStagger）"
+    },
+    "explicitlyNotExposed": [
+      "distance（px）",
+      "duration / delay",
+      "easing",
+      "threshold / rootMargin",
+      "blurRadius",
+      "任何视觉字面量"
+    ],
+    "example": "<InsightReveal step=\"group\" shift=\"medium\"><div>…</div><div>…</div></InsightReveal>"
+  },
+
+  "adapter": {
+    "required": true,
+    "reason": "滚动揭示类第三方库（各类 reveal / AOS / scroll-animation）的 API 直接暴露 duration / delay / easing / offset，一旦进入产品就把动效节奏写死在产品层，换 pack 时不会跟着变。",
+    "pattern": "External Component → Adapter → 内部稳定 API → Product",
+    "currentImplementation": "first-party（IntersectionObserver，无第三方依赖）",
+    "swapInThirdParty": [
+      "1. 第三方资产放入 incoming/components/ 走完整审计流程",
+      "2. 在 adapters/ 下把其 duration/delay/easing 映射为 --kits-dur-*-与 --kits-reveal-* 变量",
+      "3. 保留 data-kits-visible 与 --kits-reveal-index 的 DOM 契约不变",
+      "4. 产品代码零改动"
+    ]
+  },
+
+  "apiStability": {
+    "breakingChangePolicy": "破坏性变更升 major",
+    "additiveChangePolicy": "新增档位（shift=\"extreme\" 之类）属于 minor"
+  },
+
+  "dependencies": [],
+  "thirdPartyRuntime": "none",
+  "bundleSize": "≈1.4 KB gzip（React 外置）",
+  "performance": {
+    "classification": "A",
+    "cost": "单个共享 IntersectionObserver + 一次性 CSS transition",
+    "notes": [
+      "**所有实例共用一个 IntersectionObserver**（模块级单例）：20 个段落的报告页仍然只有 1 个观察器",
+      "揭示完成后置 will-change: auto，释放合成资源",
+      "位移只走 transform、模糊只走 filter，不触碰布局属性",
+      "blur 会创建合成层：只在揭示过程中存在（opacity 到 1 后 filter 归零）",
+      "maxStagger 限制最长等待：默认 6 × 步进（cinematic 下 660ms），避免尾部段落等待过久"
+    ]
+  },
+
+  "ssrCompatible": true,
+  "ssrNotes": [
+    "**服务端 HTML 里内容是可见的**：隐藏规则只作用于 .kits-reveal--animated（该类只在客户端挂载且允许动效时添加）",
+    "因此 SSR 产物本身就是完整可读内容 —— 对 SEO 与首屏可访问性友好，不存在「爬虫读到空白」的问题",
+    "首帧 data-kits-visible=\"false\" 且无 animated 类 → 可见；挂载后才可能隐藏并揭示 → 无 hydration mismatch",
+    "不读取 window/document 于渲染期；IntersectionObserver 在 useEffect 内创建",
+    "支持 @media (scripting: none) 作为第三层兜底"
+  ],
+
+  "mobileCompatible": true,
+  "mobileFallback": {
+    "trigger": "(hover: none) or (pointer: coarse)",
+    "behavior": [
+      "位移减半（CSS 层：×0.5）—— 滚动过程中元素来回抖动在小屏上更明显",
+      "步进与时长沿用 pack 配置（触屏用户同样需要阅读节奏）",
+      "无内容损失：移动端只是「轻一点」，不取消揭示"
+    ],
+    "noContentLoss": true
+  },
+
+  "reducedMotion": {
+    "behavior": [
+      "完全不做位移与模糊；只保留 opacity 淡入（用户要的是「没有运动」，不是「没有设计」）",
+      "JS 层：useMotionAllowed 为 false → 立即标记可见，不做任何观察",
+      "CSS 层：@media (prefers-reduced-motion: reduce) 强制 transform/filter 归零、transition-delay 归零",
+      "信息零损失"
+    ],
+    "mechanism": "三层：JS 能力探测 + CSS 媒体查询 + scripting:none 兜底"
+  },
+
+  "a11y": {
+    "notes": [
+      "**最关键的一条**：默认状态（无 .kits-reveal--animated）内容是可见的。隐藏规则必须带 --animated 前缀，因此脚本失败、被禁用、观察器异常时内容都不会消失",
+      "服务端 HTML 中内容可见 → 屏幕阅读器、爬虫、read-it-later 服务都能读到完整内容",
+      "reduced-motion 下仍保留 opacity 淡入：避免「看起来像加载失败」的突兀出现",
+      "揭示是纯视觉增强：不承载信息，也不改变 DOM 顺序或语义",
+      "as 属性保证语义元素正确（列表内容用 ol/ul 时揭示不破坏列表语义）",
+      "step=group 的宿主带 role=presentation 而非 aria-hidden：宿主包的是真实内容，aria-hidden 会剪掉整棵子树（v0.1.0 的真实回归，见 CHANGELOG K-01）"
+    ],
+    "keyboard": "揭示不改变 Tab 顺序；尚未揭示的元素仍可聚焦（不设 visibility:hidden / display:none）",
+    "focusNote": "不要对未揭示元素使用 display:none —— 那会把键盘用户困在看不见的元素上。本实现只动 opacity/transform/filter"
+  },
+
+  "usedByStylePacks": {
+    "editorial": "signature（70ms/段 · 10px · 无模糊：像印刷品的段落顺序）",
+    "cinematic": "optional（110ms/段 · 24px · 6px 模糊：像镜头依次对焦）",
+    "instrument": "signature（25ms/段 · 4px · 无模糊：像扫描仪逐行点亮）"
+  },
+
+  "avoidFor": [
+    "首屏以上内容（用户立刻要看的东西不应该等动画）",
+    "需要即时对比的密集表格行",
+    "同一视口内多个 InsightReveal 嵌套（步进会叠加成不可预测的延迟）"
+  ],
+
+  "demo": "demo.tsx",
+  "readme": "README.md",
+  "files": {
+    "implementation": "insight-reveal.tsx",
+    "styles": "insight-reveal.css",
+    "entry": "index.ts",
+    "sharedHook": "@kits/react-utils/use-reveal"
+  },
+
+  "source": {
+    "kind": "first-party",
+    "origin": "prototype-kits",
+    "license": "UNLICENSED (internal)",
+    "containsThirdPartyCode": false
+  },
+
+  "maintainer": "Prototype Factory",
+  "updatedAt": "2026-09-11"
+}
