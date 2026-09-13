@@ -625,7 +625,6 @@ export const zhCN = {
       owner: "研究者",
       scopeIn: "范围内",
       scopeOut: "范围外",
-      firstVisualLabel: "第一视觉",
       openTensions: "未处理张力",
       openTensionsUnit: "项",
       openTensionsNone: "无",
@@ -634,7 +633,6 @@ export const zhCN = {
     /** Anchored Question —— sticky。 */
     question: {
       label: "研究问题",
-      contextLabel: "论证上下文",
     },
 
     /** Argument Chain。 */
@@ -714,7 +712,6 @@ export const zhCN = {
 
     /** 证据片段。 */
     evidence: {
-      label: "证据",
       /** 「还有 N 条」。 */
       more: (n: number) => `还有 ${n} 条`,
       less: "收起",
@@ -726,7 +723,6 @@ export const zhCN = {
         return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`
       },
       passageLabel: "原文",
-      sourceLabel: "来源",
       sourceMissing: "来源无法解析",
       /** 来源已失效：这条引用仍然存在，但无法回去核对。 */
       sourceInvalid: "引用不可核对",
