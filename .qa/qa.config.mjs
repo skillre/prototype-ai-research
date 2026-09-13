@@ -47,9 +47,16 @@ export const routes = null
 /**
  * Routes that exist but cannot be discovered from the filesystem — dynamic
  * segments, or pages you want exercised with real ids.
+ *
+ * `/r/[researchId]` is the research workspace: a dynamic segment, so the
+ * filesystem walk cannot enumerate it. The id below is the only research in the
+ * deterministic dataset (`lib/research/dataset.ts`), and the page sets
+ * `dynamicParams = false` — so there is exactly one valid value. It is written
+ * in three places on purpose (dataset, `generateStaticParams`, here); a fourth
+ * copy is what would drift.
  * @type {string[]}
  */
-export const extraRoutes = []
+export const extraRoutes = ["/r/res-load-bearing"]
 
 /** Routes deliberately excluded from the sweep (e.g. heavy paywalls, redirects). */
 /** @type {string[]} */

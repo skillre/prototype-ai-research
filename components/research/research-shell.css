@@ -1,0 +1,1396 @@
+/* =============================================================================
+ * 研究工作区 —— 产品自有的 token 缝与结构样式
+ *
+ * 这个文件属于**产品**，是 F3/F4 的落点。它做两件事，两件都不改 Factory：
+ *
+ *   §1  中和 cinematic 性格的 fallback token（F4）
+ *   §2  把 instrument pack 契约补成完整设计系统（暗色 + 中性 fallback 桥接）
+ *
+ * 之后才是结构：Running Head / Anchored Question / Argument Spine / Evidence /
+ * Gap / Tension Rail。
+ *
+ * -----------------------------------------------------------------------------
+ * §0 · 为什么不是「改 token 层」
+ * -----------------------------------------------------------------------------
+ * `app/globals.css` 是 Factory 的**中性 fallback**（见 AGENTS.md「视觉常量」）：
+ * 它保证新建原型不是空仓库。它不属于美术方向，美术方向由 Manifest + Kits 决定，
+ * **并且允许覆盖它**。
+ *
+ * 所以这里不删、不改 `--ambient-*` / `--hero-*` / `--chart-glow`：那些值仍然
+ * 是其他路由（`/` 与 `/demo`）的中性默认。这里只在本工作区的作用域内覆盖它们。
+ *
+ * -----------------------------------------------------------------------------
+ * §1 · F3 / F4 —— instrument 的两个冲突面
+ * -----------------------------------------------------------------------------
+ * instrument 的立场是「装饰必须可被理解为刻度」，它的 antiPatterns 里明确写着
+ * `neon-glow / bloom`、`purple-gradient / 任何装饰性渐变`、`ambient-animation`。
+ * 而 fallback 里有：
+ *
+ *   F3  `PageContainer` 的 `ambient = true` 默认值
+ *       → **本路由不使用 PageContainer**（见 app/r/[researchId]/page.tsx 的说明）。
+ *         这不是「绕开它」，是因为第一视觉要求「一屏一个光源」，而本屏的光源是
+ *         缺口本身——不存在第二个晕染需要被关掉。因此 F3 在这里是**未触发**，
+ *         不是被忽略。
+ *
+ *   F4  `--hero-base` / `--ambient-hero-*` / `--ambient-brand` / `--ambient-warm`
+ *       / `--ambient-grid` / `--ambient-ring` / `--chart-glow`
+ *       → 在本工作区作用域内全部中和为 `transparent` / `none`（见下）。
+ *         连 `--kits-color-glow` 也是（pack 自己已经把它设成 transparent，
+ *         这里再声明一次是为了让「本工作区没有光」成为一条可 grep 的事实）。
+ *
+ * 副产品：`ambient-wash` / `hero-wash` / `ambient-grid` / `chart-glow` 四个
+ * utility 与 `ambient-drift` 动画在本作用域内**渲染为空**——它们读的就是这些
+ * 变量。不需要禁用它们，也不需要改 `components/prototype/ambient-backdrop.tsx`。
+ *
+ * -----------------------------------------------------------------------------
+ * §2 · 为什么需要第二段
+ * -----------------------------------------------------------------------------
+ * 两件事是 pack 契约里没有的，而它们都不是「装饰」：
+ *
+ *   (a) **暗色。** `instrument/tokens.css` 只给了一套冷灰（#e8eaec 系）。
+ *       本产品必须明暗两套都成立，而这**必须**做在 token 层：
+ *       如果在组件里写 `dark:` 分支，暗色就会变成对每个组件的第二遍实现，
+ *       而且必然会漏掉某一处。
+ *
+ *   (b) **中性 fallback 的桥接。** `app/globals.css` 的 `--background` /
+ *       `--foreground` / `--border` / `--radius` 是另一套色板（cobalt 深蓝）。
+ *       Shell 元素直接读那套，第一屏就会是「深蓝底 + 等宽字」——
+ *       那正是 visual-manifest 的 `avoid` 里点名的 generic-ai-dashboard。
+ *       因此本作用域内把 bridge 的语义槽位映射到 Kits 的槽位上。
+ *
+ * ⚠ **pack 的身份字段一律不改。** 排版 / 间距 / 密度 / 圆角 / 边界宽度 /
+ *   动效刻度全部原样继承 `instrument/tokens.css`。`visual-manifest.json` 里
+ *   `density: "medium"` 是有意偏离（pack 声明的是 high），这一点在
+ *   Manifest 与最终报告里都记着，**不在 CSS 里偷偷改**——本文件只把间距刻度
+ *   按 pack 自己的 4px 基础单位表达，没有新数值。
+ *
+ * -----------------------------------------------------------------------------
+ * §3 · 一条自我约束
+ * -----------------------------------------------------------------------------
+ * 下面所有的颜色、尺寸、时长**全部**来自 `var(--kits-*)`。
+ * 本文件里没有一个独立的十六进制颜色，也没有一个独立的毫秒数值——
+ * 需要新值时，先问它是不是 packs 契约里已有的槽位；不是的话，
+ * 它多半是一个应该在报告里被记下来的 pack 缺口，而不是一个该被写进来的常量。
+ * ========================================================================== */
+
+/* -----------------------------------------------------------------------------
+ * §1 · F4：撤掉 cinematic 性格的 fallback
+ *
+ * 作用域是 `.rs-shell`（本工作区根元素），不是 `:root`——其他路由不受影响。
+ * -------------------------------------------------------------------------- */
+
+.rs-shell {
+  --hero-base: transparent;
+  --ambient-hero-brand: transparent;
+  --ambient-hero-warm: transparent;
+  --ambient-brand: transparent;
+  --ambient-warm: transparent;
+  --ambient-grid: transparent;
+  --ambient-ring: transparent;
+  --chart-glow: transparent;
+
+  /* pack 已声明 glow 为 transparent；这里重复声明是让「本工作区无光」
+     成为一条可以在源码里被搜到的事实，而不是一个需要读 pack 才能确认的推论。 */
+  --kits-color-glow: transparent;
+
+  /* 表面处理：平面、无投影、无玻璃（instrument 的 panel 立场）。 */
+  --kits-surface-shadow: none;
+  --kits-surface-backdrop: none;
+}
+
+/* -----------------------------------------------------------------------------
+ * §2 · 桥接 + 暗色
+ *
+ * 两层映射，方向都是「Kits 槽位是源」：
+ *   桥接  --background / --border / --radius … ← var(--kits-*)
+ *   暗色  --kits-* ← 由基础槽位就地推导（相对色语法），因此只有一个可调点
+ *
+ * ⚠ **这个文件是按路由块 import 的，因此它比 `app/globals.css` 更晚进 cascade。**
+ *   后果很具体：`.dark .rs-shell`（0-2-0）会输给本文件里同名的 `.rs-shell`
+ *   （0-1-0）——**不是**输给 globals，而是输给本文件上面那一段。
+ *   所以暗色块必须**重复**声明它要覆盖的每一个属性，而不能依赖「后写的赢」。
+ *   这个坑真的踩到了：第一版只有 --kits-* 的覆盖，于是 --foreground /
+ *   --border / --background 在暗色下仍然是浅色的值，页面下半截是白底。
+ * -------------------------------------------------------------------------- */
+
+.rs-shell {
+  color-scheme: light dark;
+
+  /* --- 2a · 表面刻度：四档冷灰，与 pack 的取值同族 -------------------------
+   * 早先这里用相对色语法从 `--kits-color-ink` 就地推导
+   * （`oklch(from var(--kits-color-ink) 96% …)`）。它**看起来**更优雅，
+   * 实际是错的：Chromium 把那个值原样保留为 computed value，
+   * 于是 `background-color` 拿到一个没法解析的相对色，
+   * 页面在暗色下仍然是**浅底**——不是报错，是安静地不生效。
+   * 四行显式取值换掉一次静默失败，这笔交易很划算。 */
+  --kits-color-canvas: #e8eaec;
+  --kits-color-surface: #f4f5f6;
+  --kits-color-surface-raised: #fbfbfc;
+  --kits-color-surface-sunken: #dcdfe2;
+
+  /* --- 2b · 排版：pack 的立场是「等宽几乎承担一切」------------------------ */
+  --kits-font-display: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+  --kits-font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+  /* 唯一例外由 pack 自己写明：「超长说明文本可用无衬线」。
+     原文引文就是那种文本，而 13px 等宽的中文读三段就累。 */
+  --kits-font-body: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+
+  /* --- 2c · 字号：把 fallback 的中文刻度映射到 pack 的槽位 -----------------
+   * pack 的正文刻度是 0.8125rem / 行高 1.45；本产品把行高抬到 fallback 的
+   * 中文刻度（--text-body-sm 的 1.65）——中文比拉丁需要更高行高，
+   * 这是 AGENTS.md 的「中文排版红线」，不是风格选择。字号仍按 pack 的密度档。 */
+  --kits-body-size: var(--text-body-sm);
+  --kits-body-line: var(--text-body-sm--line-height);
+
+  /* --- 2d · 语义色桥接：状态色只借槽位，不改语义 --------------------------- */
+  --kits-color-positive: var(--success);
+  --kits-color-negative: var(--danger);
+
+  /* --- 2e · 把 bridge 拉到 Kits 上 -----------------------------------------
+   * 左边**全部**是 globals.css 的语义槽位，右边**全部**是 Kits 槽位。
+   * 它保证任何读 `bg-surface` / `border-hairline` 的元素在本工作区内
+   * 自动落在 instrument 的色板上，而不需要在每个组件里各写一遍。 */
+  --foreground: var(--kits-color-ink);
+  --surface-foreground: var(--kits-color-ink);
+  --elevated-foreground: var(--kits-color-ink);
+  --muted: var(--kits-color-surface-sunken);
+  --accent: var(--kits-color-surface-sunken);
+  --accent-foreground: var(--kits-color-ink);
+  --popover: var(--kits-color-surface-raised);
+  --popover-foreground: var(--kits-color-ink);
+  --card: var(--kits-color-surface);
+  --card-foreground: var(--kits-color-ink);
+  --secondary: var(--kits-color-surface-sunken);
+  --secondary-foreground: var(--kits-color-ink);
+  --primary: var(--kits-color-accent);
+  --primary-foreground: var(--kits-color-accent-ink);
+  --destructive: var(--kits-color-negative);
+  --ring: var(--kits-color-focus);
+  --hairline: var(--kits-color-rule);
+
+  /* 品牌：本产品的强调色**就是** pack 的工程蓝。
+     这是「颜色只承担语义」的直接翻译——没有第二支品牌色。 */
+  --brand: var(--kits-color-accent);
+  --brand-foreground: var(--kits-color-accent-ink);
+  --brand-soft: color-mix(in oklab, var(--kits-color-accent) 12%, transparent);
+  --data-accent: var(--kits-color-accent-2);
+  --data-accent-soft: color-mix(in oklab, var(--kits-color-accent-2) 14%, transparent);
+  --info: var(--kits-color-accent);
+  --warning: var(--kits-color-accent-2);
+
+  /* 直角是**机械公差**，不是设计选择（pack 原话）。桥过来保持一致。 */
+  --radius: var(--kits-radius-md);
+  --radius-sm: var(--kits-radius-sm);
+  --radius-md: var(--kits-radius-md);
+  --radius-lg: var(--kits-radius-lg);
+  --radius-field: var(--kits-radius-control);
+  --radius-card: var(--kits-radius-surface);
+  --radius-panel: var(--kits-radius-surface);
+
+  /* 面板是平的：投影会让机柜变成消费级 App。 */
+  --elevation-subtle: none;
+  --elevation-card: none;
+  --elevation-elevated: none;
+  --elevation-floating: none;
+
+  color: var(--kits-color-ink);
+  background-color: var(--kits-color-canvas);
+}
+
+/* --- 2f · 暗色 ---------------------------------------------------------------
+ * `.dark` 在 `<html>`（ThemeProvider 写在那里），`.rs-shell` 在里面，
+ * 所以用后代选择器。
+ *
+ * ⚠ 见上面那段警告：**必须把 §2e 的每一个属性再写一遍**。
+ *   只覆盖 `--kits-*` 是不够的——`--foreground` 会在本文件内部继续指向
+ *   浅色的 ink，于是暗色下正文变白底白字。这不是理论风险，是实测到的。
+ *
+ * 只改**基础槽位**：ink 变浅、accent 与 accent-2 提亮以保住对比度。
+ * 四个表面刻度由 §2a 的推导自动跟着翻，不需要第二组值。
+ * -------------------------------------------------------------------------- */
+
+.dark .rs-shell {
+  /* ink 同时是「正文色」和「表面推导的基准」，所以它必须是一条**中性**的
+     近白，而不是纯白——纯白会把面板压成一片。 */
+  --kits-color-ink: #e9ecee;
+  --kits-color-ink-muted: #97a1a7;
+  --kits-color-accent: #57c0f0;
+  --kits-color-accent-ink: #0b0e10;
+  --kits-color-accent-2: #e0913a;
+  --kits-color-focus: #57c0f0;
+
+  /* 四档冷灰的暗色版本。与明色一样：canvas 最亮、raised 最靠近正文，
+     相对关系保持一致，否则「层级靠底色差」这条规则会在这里断掉。 */
+  --kits-color-canvas: #12161a;
+  --kits-color-surface: #191e22;
+  --kits-color-surface-raised: #20262b;
+  --kits-color-surface-sunken: #0d1013;
+
+  /* 与 §2e 逐条对应。 */
+  --foreground: var(--kits-color-ink);
+  --surface-foreground: var(--kits-color-ink);
+  --elevated-foreground: var(--kits-color-ink);
+  --muted: var(--kits-color-surface-sunken);
+  --accent: var(--kits-color-surface-sunken);
+  --accent-foreground: var(--kits-color-ink);
+  --popover: var(--kits-color-surface-raised);
+  --popover-foreground: var(--kits-color-ink);
+  --card: var(--kits-color-surface);
+  --card-foreground: var(--kits-color-ink);
+  --secondary: var(--kits-color-surface-sunken);
+  --secondary-foreground: var(--kits-color-ink);
+  --primary: var(--kits-color-accent);
+  --primary-foreground: var(--kits-color-accent-ink);
+  --destructive: var(--kits-color-negative);
+  --ring: var(--kits-color-focus);
+  --hairline: var(--kits-color-rule);
+
+  --brand: var(--kits-color-accent);
+  --brand-foreground: var(--kits-color-accent-ink);
+  --brand-soft: color-mix(in oklab, var(--kits-color-accent) 18%, transparent);
+  --data-accent: var(--kits-color-accent-2);
+  --data-accent-soft: color-mix(in oklab, var(--kits-color-accent-2) 20%, transparent);
+  --info: var(--kits-color-accent);
+  --warning: var(--kits-color-accent-2);
+
+  /* 暗色下状态色用 globals 的亮档，因为 instrument 的绿/红是中亮度，
+     在近黑底上对比不足。这是**换取值**，不是换语义。 */
+  --kits-color-positive: #5fd08a;
+  --kits-color-negative: #f08a82;
+
+  color: var(--kits-color-ink);
+  background-color: var(--kits-color-canvas);
+  color-scheme: dark;
+}
+
+/* =============================================================================
+ * §3 · 结构
+ *
+ * 命名前缀 `rs-`（research shell）。全部走普通 class 而不是 utility，
+ * 理由：结构本身是本屏的设计（链条的缩进阶梯、断点的空槽、窄带的分隔），
+ * 它需要被读成一份规格，而不是散在几十个 className 字符串里。
+ * ========================================================================== */
+
+.rs-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  font-family: var(--kits-font-body);
+  font-size: var(--kits-body-size);
+  line-height: var(--kits-body-line);
+  text-wrap: pretty;
+}
+
+.rs-main {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: var(--kits-content-max);
+  margin-inline: auto;
+  padding-inline: var(--kits-gutter);
+}
+
+.rs-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* -----------------------------------------------------------------------------
+ * §3a · Running Head
+ *
+ * 单行。1px rule。不抢主空间。它不是 TopNav：没有品牌区、没有导航项、
+ * 没有账户菜单——那些都是 shell 的语言，不是研究工作的语言。
+ * -------------------------------------------------------------------------- */
+
+.rs-running-head {
+  border-bottom: var(--kits-border-width) var(--kits-border-style)
+    var(--kits-border-hairline-color);
+  background-color: var(--kits-color-surface);
+}
+
+.rs-running-head__inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap-inline: var(--kits-space-sm);
+  justify-content: space-between;
+  width: 100%;
+  max-width: var(--kits-content-max);
+  margin-inline: auto;
+  padding: var(--kits-space-xs) var(--kits-gutter);
+}
+
+.rs-running-head__group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--kits-space-sm);
+  min-width: 0;
+}
+
+.rs-running-head__codename {
+  font-family: var(--kits-font-display);
+  font-size: var(--kits-title-size);
+  line-height: var(--kits-title-line);
+  letter-spacing: var(--kits-title-tracking);
+  font-weight: 600;
+  margin: 0;
+}
+
+.rs-running-head__scope {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--kits-space-xs);
+  min-width: 0;
+}
+
+.rs-running-head__scope-item {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--kits-space-2xs);
+  max-width: 22ch;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.rs-tally {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--kits-space-2xs);
+  padding-inline: var(--kits-space-2xs);
+  border-inline-start: var(--kits-border-width-strong) var(--kits-border-style)
+    var(--kits-color-accent);
+  font-family: var(--kits-font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.rs-tally--empty {
+  border-inline-start-color: var(--kits-color-rule);
+  color: var(--kits-color-ink-muted);
+}
+
+/* -----------------------------------------------------------------------------
+ * §3b · Anchored Question（sticky）
+ *
+ * 它必须**始终**作为论证上下文。所以它不是一张 hero card，它是链条的锚——
+ * 单行、sticky、钉在视野顶部，滚动时始终可读。
+ * -------------------------------------------------------------------------- */
+
+.rs-question {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: var(--kits-space-2xs);
+  padding-block: var(--kits-space-sm);
+  background-color: var(--kits-color-canvas);
+  border-bottom: var(--kits-border-width-strong) var(--kits-border-style)
+    var(--kits-color-rule-strong);
+}
+
+.rs-question__row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--kits-space-sm);
+}
+
+.rs-question__text {
+  font-family: var(--kits-font-display);
+  font-size: var(--kits-title-size);
+  line-height: var(--kits-title-line);
+  letter-spacing: var(--kits-title-tracking);
+  font-weight: 600;
+  margin: 0;
+}
+
+.rs-question__index {
+  flex: none;
+  font-family: var(--kits-font-mono);
+  font-size: var(--kits-label-size);
+  letter-spacing: var(--kits-label-tracking);
+  color: var(--kits-color-ink-muted);
+}
+
+/* -----------------------------------------------------------------------------
+ * §3c · Body：Spine + Rail
+ * -------------------------------------------------------------------------- */
+
+.rs-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--kits-section-gap);
+  padding-block: var(--kits-section-gap);
+}
+
+@media (min-width: 1024px) {
+  .rs-body {
+    grid-template-columns: minmax(0, 1fr) var(--rs-rail-width);
+  }
+}
+
+/* 窄带宽度：19rem（304px）。实测：桌面 1440px 下主栏 = 78% / 窄带 = 22%，
+   正是 firstVisual 说的「论证链占据主空间 / 右侧窄带」。
+   别把它调大：窄带一旦超过四分之一，它就不再是「窄带」，
+   页面会开始读起来像一个两栏后台（--kits-content-max 上还有 88rem 的余量，
+   所以在更宽的屏幕上这个比例会保持）。 */
+.rs-body {
+  --rs-rail-width: 19rem;
+}
+
+.rs-section-label {
+  display: flex;
+  align-items: center;
+  gap: var(--kits-space-xs);
+  font-family: var(--kits-font-mono);
+  font-size: var(--kits-label-size);
+  letter-spacing: var(--kits-label-tracking);
+  text-transform: var(--kits-label-transform);
+  font-weight: var(--kits-label-weight);
+  color: var(--kits-color-ink-muted);
+}
+
+.rs-section-label__tick {
+  display: inline-block;
+  width: calc(var(--kits-space-unit) * 4);
+  height: var(--kits-border-width-strong);
+  background: var(--kits-color-accent);
+}
+
+/* -----------------------------------------------------------------------------
+ * §3d · Argument Spine
+ *
+ * 纵向连续，不是卡片网格。分组 → 论断 → 证据。
+ * -------------------------------------------------------------------------- */
+
+.rs-spine {
+  display: flex;
+  flex-direction: column;
+  gap: var(--kits-section-gap);
+  min-width: 0;
+}
+
+.rs-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.rs-group__head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--kits-space-2xs);
+  padding-bottom: var(--kits-space-2xs);
+  border-bottom: var(--kits-border-width-strong) var(--kits-border-style)
+    var(--kits-color-rule-strong);
+}
+
+/* 主问题那一组没有视觉标题——它的标题是给读屏用户的。
+   它**不再额外加下边距**：首屏那张缺口卡片已经在它下面自带 `--kits-space-md`
+   的上边距，再加一层就变成双倍空隙，链条在其上方断成两块（第一版就是这样）。 */
+.rs-group--root {
+  margin-bottom: 0;
+}
+
+.rs-group + .rs-group {
+  margin-top: var(--kits-space-xl);
+}
+
+.rs-group__question {
+  font-family: var(--kits-font-display);
+  font-size: var(--kits-title-size);
+  line-height: var(--kits-title-line);
+  letter-spacing: var(--kits-title-tracking);
+  font-weight: 600;
+  margin: 0;
+}
+
+.rs-group__claims {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* -----------------------------------------------------------------------------
+ * §3d · 「来源已失效」的证据行
+ *
+ * `stale-source` 是一条**有内容**的张力：那一栏不是空的——它有一条引用，
+ * 而那条引用已经无法核对。所以它不能被画成空槽（那会撒谎），
+ * 但也不能长得和能核对的引用一模一样（那会误导）。
+ *
+ * 处理方式：删除线 + 一条「不可核对」标记。删除线是**形状**通道，
+ * 灰度下同样成立。
+ * -------------------------------------------------------------------------- */
+
+.rs-evidence__row[data-source-validity="stale"],
+.rs-evidence__row[data-source-validity="missing"] {
+  border-inline-start-style: dotted;
+  border-inline-start-color: var(--kits-color-negative);
+}
+
+.rs-evidence__row[data-source-validity="stale"] .rs-evidence__text,
+.rs-evidence__row[data-source-validity="missing"] .rs-evidence__text {
+  text-decoration: line-through;
+  text-decoration-color: var(--kits-color-rule-strong);
+  text-decoration-thickness: var(--kits-border-width);
+  color: var(--kits-color-ink-muted);
+}
+
+.rs-evidence__invalid {
+  font-family: var(--kits-font-mono);
+  font-size: var(--kits-label-size);
+  letter-spacing: var(--kits-label-tracking);
+  font-weight: var(--kits-label-weight);
+  color: var(--kits-color-negative);
+  white-space: nowrap;
+}
+
+/* -----------------------------------------------------------------------------
+ * §3e · Claim
+ *
+ * 每条论断是一块面板：索引列 + 内容列。索引列同时是「刻度尺」——
+ * 它就是 firstVisual 说的「纵向连续」那条线的落点。
+ *
+ * 为什么不用 SVG 画线：见页面里关于 decoration 的说明。
+ * 这里的刻度是**重复线性渐变**，纯装饰、无语义、可被 aria-hidden 忽略
+ * （它由一个空 span 承载，该 span 不承载任何文字）。
+ * -------------------------------------------------------------------------- */
+
+.rs-claim {
+  position: relative;
+  display: grid;
+  grid-template-columns: var(--rs-claim-gutter) minmax(0, 1fr);
+  padding-block: var(--kits-space-md) var(--kits-space-lg);
+}
+
+.rs-claim + .rs-claim {
+  border-top: var(--kits-border-width) var(--kits-border-style)
+    var(--kits-border-hairline-color);
+}
+
+.rs-claim {
+  --rs-claim-gutter: calc(var(--kits-space-unit) * 8);
+}
+
+/* 刻度尺：4px 周期的斜向 hatch。它是「量尺」，不是纹理——
+   instrument 允许的唯一装饰就是可被理解为刻度的东西。 */
+.rs-claim__scale {
+  grid-column: 1;
+  grid-row: 1 / -1;
+  margin-inline: auto 0;
+  width: calc(var(--kits-space-unit) * 2);
+  background-image: repeating-linear-gradient(
+    135deg,
+    var(--kits-color-rule) 0,
+    var(--kits-color-rule) 1px,
+    transparent 1px,
+    transparent 4px
+  );
+}
+
+.rs-claim__body {
+  grid-column: 2;
+  display: flex;
+  flex-direction: column;
+  gap: var(--kits-space-sm);
+  min-width: 0;
+}
+
+.rs-claim__head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--kits-space-xs);
+  flex-wrap: wrap;
+}
+
+.rs-claim__index {
+  font-family: var(--kits-font-mono);
+  font-size: var(--kits-label-size);
+  letter-spacing: var(--kits-label-tracking);
+  text-transform: var(--kits-label-transform);
+  font-weight: var(--kits-label-weight);
+  color: var(--kits-color-accent);
+  border: var(--kits-border-width) var(--kits-border-style)
+    var(--kits-color-rule-strong);
+  padding-inline: var(--kits-space-2xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.rs-claim__text {
+  font-family: var(--kits-font-display);
+  font-size: var(--kits-title-size);
+  line-height: var(--kits-title-line);
+  /* 中文不使用负字距（AGENTS.md「中文排版红线」）。pack 的
+     --kits-title-tracking（+0.04em）在等宽英文上是对的，但中文正文级标题
+     不需要它，这里落在 0 而不是一个负值。 */
+  letter-spacing: 0;
+  font-weight: 600;
+  margin: 0;
+  max-width: var(--kits-body-max-width);
+}
+
+.rs-claim__status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--kits-space-xs);
+}
+
+.rs-readout {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--kits-space-2xs);
+  font-family: var(--kits-font-mono);
+  font-variant-numeric: tabular-nums slashed-zero;
+  font-feature-settings: "zero" 1;
+}
+
+/* 依据状态：正/负值不只靠颜色——左侧 2px 条的形状也不同（实心 / 断裂）。 */
+.rs-readout--ok {
+  border-inline-start: var(--kits-border-width-strong) var(--kits-border-style)
+    var(--kits-color-positive);
+  padding-inline-start: var(--kits-space-2xs);
+}
+
+.rs-readout--contested {
+  border-inline-start: var(--kits-border-width-strong) var(--kits-border-style)
+    var(--kits-color-negative);
+  padding-inline-start: var(--kits-space-2xs);
+}
+
+.rs-readout--invalidated {
+  border-inline-start: var(--kits-border-width-strong) var(--kits-border-style)
+    var(--kits-color-negative);
+  padding-inline-start: var(--kits-space-2xs);
+  text-decoration: line-through;
+  text-decoration-color: var(--kits-color-rule-strong);
+}
+
+.rs-readout--unsupported {
+  border-inline-start: var(--kits-border-width-strong) var(--kits-border-style)
+    var(--kits-color-rule-strong);
+  padding-inline-start: var(--kits-space-2xs);
+}
+
+/* -----------------------------------------------------------------------------
+ * §3f · 断点（Unsupported Gap）—— 本屏的视觉主角
+ *
+ * 第一视觉是「空 · 断 · 虚线 · 结构缺失」，**不是** glow / 红卡 / 大图标。
+ * 所以这里的做法是：把本该有证据的那一栏画成一个虚线空槽——
+ * 内容缺席，而缺席本身有形状。
+ * -------------------------------------------------------------------------- */
+
+.rs-gap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--kits-space-xs);
+}
+
+.rs-gap__slot {
+  /* 虚线空槽。高度是**一个证据行**的高度——所以它读起来像
+     「这里本该有一条证据，但它不在」，而不是像一张空卡片。 */
+  display: flex;
+  align-items: center;
+  gap: var(--kits-space-xs);
+  min-height: calc(var(--kits-space-lg) * 2);
+  padding: var(--kits-space-sm);
+  border: var(--kits-border-width) dashed var(--kits-color-rule-strong);
+  border-radius: var(--kits-radius-surface);
+  background-color: transparent;
+}
+
+.rs-gap__empty {
+  font-family: var(--kits-font-mono);
+  font-size: var(--kits-label-size);
+  letter-spacing: var(--kits-label-tracking);
+  text-transform: var(--kits-label-transform);
+  font-weight: var(--kits-label-weight);
+  color: var(--kits-color-ink-muted);
+}
+
+/* 空槽的**理由**：只有 missing-evidence 类的缺口会说这句话。
+   它比「尚无证据支撑」低一档——标题已经说了结论，这里是依据。 */
+.rs-gap__because {
+  font-family: var(--kits-font-body);
+  font-size: var(--kits-body-size);
+  line-height: var(--kits-body-line);
+  color: var(--kits-color-ink-muted);
+  max-width: var(--kits-body-max-width);
+}
+
+/* 空槽内部：标签 + 结论 + 理由，横排并在窄处换行。
+   不写死列数——`min-width: 0` + `flex-wrap` 让它在 390px 下自己折成两行，
+   而不是把「断点」两个字挤成竖排（第一版就是那样）。 */
+.rs-gap__slot > * {
+  min-width: 0;
+}
+
+/* 论断上的张力标记：已有证据但不够强（有反驳 / 单一来源 / 来源质量偏低）。
+   它是**标签**，不是空槽——那一栏有内容，画成空槽就是在撒谎。 */
+.rs-claim__flags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--kits-space-xs);
+  margin: 0;
+}
+
+.rs-claim__flag {
+  padding-inline: var(--kits-space-2xs);
+  border-inline-start: var(--kits-border-width-strong) var(--kits-border-style)
+    var(--kits-color-accent-2);
+  color: var(--kits-color-ink-muted);
+}
+
+/* 「断点」标记：空槽左边缘上的一个方块，像断掉的接头。 */
+.rs-gap__break {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--kits-space-2xs);
+  font-family: var(--kits-font-mono);
+  font-size: var(--kits-label-size);
+  letter-spacing: var(--kits-label-tracking);
+  text-transform: var(--kits-label-transform);
+  font-weight: var(--kits-label-weight);
+  color: var(--kits-color-accent-2);
+}
+
+.rs-gap__break::before {
+  content: "";
+  display: inline-block;
+  width: var(--kits-space-xs);
+  height: var(--kits-space-xs);
+  background: var(--kits-color-accent-2);
+  transform: translateY(0.05em);
+}
+
+.rs-gap__requires {
+  display: flex;
+  flex-direction: column;
+  gap: var(--kits-space-2xs);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rs-gap__require {
+  display: grid;
+  grid-template-columns: 9ch minmax(0, 1fr);
+  gap: var(--kits-space-xs);
+  align-items: baseline;
+}
+
+.rs-gap__require:first-child .rs-gap__require-label {
+  /* 只有第一行带 label，其余与它对齐——一个真实的三行规格表，
+     而不是三张并排的小卡片。 */
+  color: var(--kits-color-ink-muted);
+}
+
+.rs-gap__require-label {
+  font-family: var(--kits-font-mono);
+  font-size: var(--kits-label-size);
+  letter-spacing: var(--kits-label-tracking);
+  text-transform: var(--kits-label-transform);
+  font-weight: var(--kits-label-weight);
+}
+
+.rs-gap__require-value {
+  font-family: var(--kits-font-mono);
+  font-size: var(--kits-body-size);
+  color: var(--kits-color-ink);
+  min-width: 0;
+}
+
+.rs-gap__question {
+  display: flex;
+  flex-direction: column;
+  gap: var(--kits-space-2xs);
+}
+
+/* 缺口是主角，所以它的对比度**高于**已完成内容：
+   空槽边框用 rule-strong（55%），而普通分隔线只有 20%。 */
+.rs-gap--primary .rs-gap__slot {
+  min-height: calc(var(--kits-space-lg) * 3);
+  border-color: var(--kits-color-ink-muted);
+}
+
+.rs-gap--primary .rs-gap__empty {
+  color: var(--kits-color-ink);
+  font-size: var(--kits-body-size);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.rs-gap__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--kits-space-xs);
+}
+
+/* -----------------------------------------------------------------------------
+ * §3g · Evidence
+ *
+ * 证据**直接附着于**论断：同一条论断下、缩进对齐、紧贴。
+ * 形状语言严格按关系契约的 `form` 通道，不只靠颜色。
+ * -------------------------------------------------------------------------- */
+
+.rs-evidence {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: var(--kits-border-width) var(--kits-border-style)
+    var(--kits-border-hairline-color);
+}
+
+.rs-evidence__item {
+  min-width: 0;
+}
+
+.rs-evidence__row {
+  display: grid;
+  grid-template-columns: calc(var(--kits-space-unit) * 6) minmax(0, 1fr);
+  gap: var(--kits-space-sm);
+  align-items: start;
+  width: 100%;
+  padding: var(--kits-space-sm) var(--kits-space-xs) var(--kits-space-sm) 0;
+  border: 0;
+  border-bottom: var(--kits-border-width) var(--kits-border-style)
+    var(--kits-border-hairline-color);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+  transition:
+    background-color var(--kits-dur-instant) var(--kits-ease-linear),
+    border-color var(--kits-dur-instant) var(--kits-ease-linear);
+}
+
+/* ---- 形状通道 1/4 · supports → solid-attached（实心贴片，紧贴） ----------- */
+
+.rs-evidence__row[data-form="solid-attached"] {
+  border-inline-start: var(--kits-border-width-strong) var(--kits-border-style)
+    var(--kits-color-ink);
+  padding-inline-start: var(--kits-space-sm);
+}
+
+/* ---- 形状通道 2/4 · contradicts → reverse-arrow（逆流 + 反向箭头） -------- */
+
+.rs-evidence__row[data-form="reverse-arrow"] {
+  border-inline-start: var(--kits-border-width-strong) var(--kits-border-style)
+    var(--kits-color-ink);
+  border-inline-end: var(--kits-border-width-strong) var(--kits-border-style)
+    var(--kits-color-ink);
+  padding-inline: var(--kits-space-sm);
+}
+
+/* 反向箭头：**文字字符**，不是 CSS 生成内容。
+   两条理由：(1) CSS `content` 无法访问契约里的数据；(2) 生成内容在某些
+   辅助技术里不参与朗读，而那正是「形状不能是唯一载体」要防的情况。
+   它由组件从契约的 `glyph` 通道选中，因此契约改图元时这里跟着改。 */
+.rs-evidence__reverse {
+  color: var(--kits-color-ink);
+  font-family: var(--kits-font-mono);
+  font-size: var(--kits-body-size);
+  line-height: 1;
+}
+
+/* ---- 形状通道 3/4 · qualifies → notched（缺角） --------------------------- */
+
+.rs-evidence__row[data-form="notched"] {
+  border-inline-start: var(--kits-border-width-strong) dashed
+    var(--kits-color-ink-muted);
+  padding-inline-start: var(--kits-space-sm);
+}
+
+/* 缺角：在左边缘上切掉一块。用一个背景色的小方块盖住虚线的一个缺口，
+   四角里只有左上被切——「缺角」而不是「圆角」。 */
+.rs-evidence__row[data-form="notched"] {
+  position: relative;
+}
+
+.rs-evidence__row[data-form="notched"]::before {
+  content: "";
+  position: absolute;
+  inset-inline-start: 0;
+  inset-block-start: var(--kits-space-sm);
+  width: var(--kits-space-xs);
+  height: var(--kits-space-xs);
+  background-color: var(--kits-color-canvas);
+}
+
+/* ---- 形状通道 4/4 · context → recessed（半透明、无边框、缩进下沉） -------- */
+
+.rs-evidence__row[data-form="recessed"] {
+  margin-inline-start: var(--rs-claim-gutter);
+  padding-inline-start: var(--kits-space-sm);
+  border-bottom-style: dotted;
+  color: var(--kits-color-ink-muted);
+}
+
+.rs-evidence__row[data-form="recessed"] .rs-evidence__text {
+  color: var(--kits-color-ink-muted);
+}
+
+/* ---- 行的公共部分 --------------------------------------------------------- */
+
+.rs-evidence__row:hover {
+  background-color: var(--kits-color-surface);
+  border-color: var(--kits-color-rule-strong);
+}
+
+.rs-evidence__row:focus-visible {
+  outline: var(--kits-border-width-strong) var(--kits-border-style)
+    var(--kits-color-focus);
+  outline-offset: -2px;
+}
+
+.rs-evidence__stance {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--kits-space-2xs);
+  min-width: 0;
+}
+
+.rs-evidence__label {
+  font-family: var(--kits-font-mono);
+  font-size: var(--kits-label-size);
+  letter-spacing: var(--kits-label-tracking);
+  font-weight: var(--kits-label-weight);
+  color: var(--kits-color-ink);
+  white-space: nowrap;
+}
+
+.rs-evidence__text {
+  display: block;
+  font-family: var(--kits-font-body);
+  font-size: var(--kits-body-size);
+  line-height: var(--kits-body-line);
+  color: var(--kits-color-ink);
+  max-width: var(--kits-body-max-width);
+}
+
+.rs-evidence__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--kits-space-xs);
+  font-family: var(--kits-font-mono);
+  font-size: var(--kits-label-size);
+  letter-spacing: var(--kits-label-tracking);
+  color: var(--kits-color-ink-muted);
+}
+
+.rs-evidence__caret {
+  margin-inline-start: auto;
+  font-family: var(--kits-font-mono);
+  font-size: var(--kits-label-size);
+  color: var(--kits-color-ink-muted);
+}
+
+/* ---- inline reveal：原文就地展开，不跳 route ------------------------------ */
+
+.rs-evidence__reveal {
+  display: flex;
+  flex-direction: column;
+  gap: var(--kits-space-xs);
+  padding: var(--kits-space-sm);
+  margin-inline-start: calc(var(--kits-space-unit) * 6);
+  border-inline-start: var(--kits-border-width-strong) var(--kits-border-style)
+    var(--kits-color-accent);
+  background-color: var(--kits-color-surface);
+}
+
+.rs-evidence__reveal-text {
+  font-family: var(--kits-font-body);
+  font-size: var(--kits-body-size);
+  line-height: var(--kits-body-line);
+  color: var(--kits-color-ink);
+  max-width: var(--kits-body-max-width);
+  margin: 0;
+}
+
+.rs-evidence__note {
+  font-family: var(--kits-font-body);
+  font-size: var(--kits-body-size);
+  line-height: var(--kits-body-line);
+  color: var(--kits-color-ink-muted);
+  margin: 0;
+  max-width: var(--kits-body-max-width);
+}
+
+.rs-evidence__more {
+  align-self: flex-start;
+  margin-block: var(--kits-space-xs);
+}
+
+/* -----------------------------------------------------------------------------
+ * §3h · 控件
+ *
+ * 全部用 pack 的 `.kits-control` 作为基座（28px 高、2px 圆角、1px 硬边界），
+ * 但产品这一层要保证命中区足够大：AGENTS.md 要求 ≥24px，而 pack 的
+ * 28px 已经满足。移动端再抬到 32px（见 §4）。
+ * -------------------------------------------------------------------------- */
+
+.rs-action {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--kits-space-2xs);
+  border-radius: var(--kits-radius-control);
+  cursor: pointer;
+}
+
+.rs-action--quiet {
+  border-color: var(--kits-color-rule);
+  color: var(--kits-color-ink-muted);
+}
+
+.rs-action--quiet:hover {
+  color: var(--kits-color-ink);
+}
+
+/* -----------------------------------------------------------------------------
+ * §3i · Tension Rail
+ *
+ * 右侧窄带。桌面是**并排的一栏**（sticky 跟随），不是浮层。
+ * 只放未处理的张力——已闭合的只在底部留一句计数。
+ * -------------------------------------------------------------------------- */
+
+.rs-rail-desktop {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .rs-rail-desktop {
+    display: flex;
+    flex-direction: column;
+    gap: var(--kits-space-sm);
+    align-self: start;
+    position: sticky;
+    top: calc(var(--kits-space-lg) + var(--kits-space-md));
+    max-height: calc(100dvh - var(--kits-space-lg) * 3);
+    overflow-y: auto;
+  }
+}
+
+.rs-rail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--kits-space-sm);
+  min-width: 0;
+}
+
+.rs-rail__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--kits-space-xs);
+  padding-bottom: var(--kits-space-2xs);
+  border-bottom: var(--kits-border-width-strong) var(--kits-border-style)
+    var(--kits-color-rule-strong);
+}
+
+.rs-rail__list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rs-rail__item {
+  display: grid;
+  grid-template-columns: calc(var(--kits-space-unit) * 5) minmax(0, 1fr);
+  gap: var(--kits-space-xs);
+  align-items: start;
+  width: 100%;
+  padding: var(--kits-space-sm) var(--kits-space-2xs);
+  border: 0;
+  border-bottom: var(--kits-border-width) var(--kits-border-style)
+    var(--kits-border-hairline-color);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+  transition: background-color var(--kits-dur-instant) var(--kits-ease-linear);
+}
+
+.rs-rail__item:hover {
+  background-color: var(--kits-color-surface);
+}
+
+.rs-rail__item:focus-visible {
+  outline: var(--kits-border-width-strong) var(--kits-border-style)
+    var(--kits-color-focus);
+  outline-offset: -2px;
+}
+
+/* 严重度：阻断是实心条，注意是断裂条。灰度下也分得开。 */
+.rs-rail__severity {
+  display: inline-block;
+  width: var(--kits-space-xs);
+  height: var(--kits-space-lg);
+}
+
+.rs-rail__severity[data-severity="blocking"] {
+  background: var(--kits-color-accent-2);
+}
+
+.rs-rail__severity[data-severity="notable"] {
+  background-image: repeating-linear-gradient(
+    180deg,
+    var(--kits-color-rule-strong) 0,
+    var(--kits-color-rule-strong) 2px,
+    transparent 2px,
+    transparent 5px
+  );
+}
+
+.rs-rail__kind {
+  font-family: var(--kits-font-mono);
+  font-size: var(--kits-body-size);
+  line-height: var(--kits-title-line);
+  font-weight: 600;
+  color: var(--kits-color-ink);
+}
+
+.rs-rail__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--kits-space-xs);
+  font-family: var(--kits-font-mono);
+  font-size: var(--kits-label-size);
+  letter-spacing: var(--kits-label-tracking);
+  color: var(--kits-color-ink-muted);
+}
+
+.rs-rail__foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--kits-space-xs);
+}
+
+.rs-rail__empty {
+  color: var(--kits-color-ink-muted);
+}
+
+/* 被 rail 点中的论断：短暂高亮，让「滚过去了」这件事被看见。 */
+.rs-claim[data-focused="true"] {
+  background-color: var(--kits-color-surface);
+}
+
+.rs-claim[data-focused="true"] .rs-claim__scale {
+  background-image: repeating-linear-gradient(
+    135deg,
+    var(--kits-color-accent) 0,
+    var(--kits-color-accent) 1px,
+    transparent 1px,
+    transparent 4px
+  );
+}
+
+/* -----------------------------------------------------------------------------
+ * §3j · 移动端的 rail（底部抽屉）
+ *
+ * 桌面那栏在 1024px 以下不渲染；移动端改成一个从底部升起的抽屉。
+ * 本阶段只实现：开 / 关 / 列表 / 滚到对应论断。**不做处置。**
+ * -------------------------------------------------------------------------- */
+
+.rs-rail-dock {
+  position: fixed;
+  inset-inline: 0;
+  inset-block-end: 0;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border-top: var(--kits-border-width-strong) var(--kits-border-style)
+    var(--kits-color-rule-strong);
+  background-color: var(--kits-color-surface);
+}
+
+@media (min-width: 1024px) {
+  .rs-rail-dock {
+    display: none;
+  }
+}
+
+.rs-rail-dock__toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--kits-space-xs);
+  width: 100%;
+  padding: var(--kits-space-sm) var(--kits-gutter);
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+/* 展开的高度：一屏的一半。列表可滚，因此再多条目也不会占满整屏。 */
+.rs-rail-dock__panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--kits-space-xs);
+  max-height: 52dvh;
+  overflow-y: auto;
+  padding: 0 var(--kits-gutter) var(--kits-space-md);
+  border-top: var(--kits-border-width) var(--kits-border-style)
+    var(--kits-border-hairline-color);
+}
+
+/* -----------------------------------------------------------------------------
+ * §3k · 缺口的第一屏卡片
+ *
+ * firstVisual 说的是「其中一处无证据支撑的断点成为第一视觉焦点」——
+ * **不是**「移动端才看得到」。所以这张卡片在桌面与移动端都存在，
+ * 位置也一样：论证链的开头。
+ *
+ * 它比链条里那个空槽多两样东西：
+ *   1. 论断原文（因为它在论断之前出现，读者还没有上下文）；
+ *   2. 一个「定位到这条论断」的行动，把读者送进链条。
+ *
+ * 它刻意长成「链条第 0 条」而不是「一张警告卡片」：同样的虚线、同样的左对齐、
+ * 同样的等宽标签。它不属于另一套视觉语言。
+ * -------------------------------------------------------------------------- */
+
+.rs-gap-lead {
+  display: flex;
+  flex-direction: column;
+  gap: var(--kits-space-xs);
+  margin-block: var(--kits-space-md);
+  padding: var(--kits-space-sm);
+  border: var(--kits-border-width) dashed var(--kits-color-ink-muted);
+  border-radius: var(--kits-radius-surface);
+}
+
+.rs-gap-lead__claim {
+  font-family: var(--kits-font-display);
+  font-size: var(--kits-title-size);
+  line-height: var(--kits-title-line);
+  letter-spacing: 0;
+  font-weight: 600;
+  color: var(--kits-color-ink);
+  margin: 0;
+  max-width: var(--kits-body-max-width);
+}
+
+/* 桌面下这张卡片是**第一视觉**，所以给它比链条内空槽更高的存在感：
+   更高、更宽的留白，但依然没有 glow、没有渐变、没有第二个光源。 */
+@media (min-width: 1024px) {
+  .rs-gap-lead {
+    padding: var(--kits-space-md);
+  }
+}
+
+/* 这张卡片已经讲过的缺口，链条里不再重复画一次空槽。
+   桌面与窄屏都生效——理由不是省空间，是**同一屏上不把同一件事说两遍**。
+   折叠的只有空槽本体；理由与材料要求仍然显示，所以语义完整。 */
+.rs-shell[data-suppressed-gap] .rs-claim[data-gap-suppressed="true"] .rs-gap__slot {
+  display: none;
+}
+
+/* =============================================================================
+ * §4 · 移动端（390×844）
+ *
+ * 不是「把桌面缩小」，是重新构图。三条硬约束：
+ *   1. 证据四态的顺序**由契约 order 决定**（反驳 → 支持 → 限定 → 背景），
+ *      它已经由 projections 排好，这里只负责渲染；
+ *   2. 一条论断不得占满整屏 → 证据默认只显示有限条数，其余折起；
+ *   3. 触控命中区 ≥ 32px。
+ * ========================================================================== */
+
+@media (max-width: 640px) {
+  .rs-shell {
+    padding-block-end: calc(var(--kits-space-lg) * 2);
+  }
+
+  /* 空槽在窄屏折行：`断点` 独占一行，结论与理由各占一行。
+     让 flex 自己折，而不是给它一个固定列数——固定列数在 390px 上
+     会把两字标签压成竖排。 */
+  .rs-gap__slot {
+    flex-wrap: wrap;
+    row-gap: var(--kits-space-2xs);
+  }
+
+  .rs-gap__empty,
+  .rs-gap__because {
+    flex-basis: 100%;
+  }
+
+  /* 链条内的空槽折叠规则**不在这里**——它在 §3k，桌面与窄屏都生效。
+     理由不是省空间，是「同一屏上不把同一件事说两遍」。 */
+
+  .rs-claim {
+    --rs-claim-gutter: calc(var(--kits-space-unit) * 5);
+  }
+
+  .rs-evidence__row[data-form="recessed"] {
+    margin-inline-start: calc(var(--kits-space-unit) * 4);
+  }
+
+  .rs-evidence__reveal {
+    margin-inline-start: var(--kits-space-xs);
+  }
+
+  .rs-evidence__row {
+    min-height: calc(var(--kits-space-unit) * 8);
+  }
+
+  .rs-question {
+    padding-block: var(--kits-space-xs);
+  }
+
+  .rs-gap__require {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--kits-space-2xs);
+  }
+}
+
+/* =============================================================================
+ * §5 · 动效（precise-structural）
+ *
+ * instrument 没有 ambient role：仪表不做无信息量的持续动画。
+ * 所以本屏**没有**任何环境动画，只有两个状态变化：
+ *   - 揭示（由 InsightReveal 组件驱动，走 pack 的 --kits-dur-*）
+ *   - 悬停 / 聚焦（50ms linear，交互即时）
+ *
+ * reduced-motion 下：所有内容**默认可见**，不依赖 IntersectionObserver。
+ * 这不是这里写的，是 pack 的 `useReveal` 内建的第二层降级——它不观察、
+ * 直接标记 visible，因此 `.kits-reveal--animated` 根本不会被加上。
+ * ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  .rs-claim,
+  .rs-evidence__row,
+  .rs-rail__item {
+    transition: none;
+  }
+}
+
+/* 打印：本屏是一份论证，白纸黑字也应该读得出来。 */
+@media print {
+  .rs-rail-desktop,
+  .rs-rail-dock {
+    display: none;
+  }
+}

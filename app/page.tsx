@@ -17,6 +17,7 @@ import { AmbientBackdrop } from "@/components/prototype/ambient-backdrop"
 import { buttonVariants } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { useMessages } from "@/components/i18n/locale-provider"
+import { loadBearingResearch } from "@/lib/research"
 
 /** 图标与文案一一对应——文案在词典里，图标留在组件里。 */
 const FEATURE_ICONS: LucideIcon[] = [
@@ -54,6 +55,12 @@ export default function LandingPage() {
             <Link href="/demo" className={buttonVariants({ size: "lg" })}>
               {copy.primaryCta}
               <ArrowRightIcon />
+            </Link>
+            <Link
+              href={`/r/${loadBearingResearch.research.id}`}
+              className={buttonVariants({ variant: "outline", size: "lg" })}
+            >
+              {copy.researchCta}
             </Link>
             <Link href="#stack" className={buttonVariants({ variant: "ghost", size: "lg" })}>
               {copy.tertiaryCta}

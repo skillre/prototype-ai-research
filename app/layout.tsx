@@ -6,6 +6,7 @@ import { LocaleProvider } from "@/components/i18n/locale-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
 import { DEFAULT_LOCALE } from "@/lib/i18n";
+import { stylePackMotionVars } from "@/lib/kits/adapters/data";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -33,6 +34,19 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang={DEFAULT_LOCALE}
       suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      /*
+       * Style Pack 的动效刻度。它由**适配层**从契约层的编译器取得
+       * （`motionToCssVars`），不是手抄的映射表——Kits 改变量名时，
+       * 手抄的那份不会报错，只会静默失效。
+       *
+       * 注入在 <html> 上是因为它只是**变量**：不带作用域，谁声明
+       * `[data-kits-pack="…"]` 谁消费它们。没有那个作用域的页面读不到，
+       * 因此共用一份 CSS 变量不会让别的路由被重绘。
+       *
+       * reduced-motion 下这些时长由契约层用 `!important` 归零，
+       * 所以「关掉动效」不需要在这里加任何分支。
+       */
+      style={stylePackMotionVars}
     >
       <body className="min-h-full flex flex-col">
         <script suppressHydrationWarning dangerouslySetInnerHTML={{ __html: themeScript }} />

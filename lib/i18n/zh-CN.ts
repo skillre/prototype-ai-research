@@ -280,6 +280,14 @@ export const zhCN = {
       "面向高保真产品原型的可复用基础：纯前端 + 本地状态 + 真实感 mock 数据——没有任何静态假页面。",
     primaryCta: "打开演示仪表盘",
     tertiaryCta: "里面有什么",
+    /**
+     * 研究工作区的入口。
+     *
+     * 它存在是因为**没有它就没有入口**：`/r/[researchId]` 是一条动态路由，
+     * 落地页目前是唯一能通向它的地方。完整的 Research Index 不在本阶段范围内。
+     */
+    researchCta: "打开研究工作区",
+    researchHint: "第三个原型：一条纵向论证链，第一视觉是缺口本身。",
     highlights: [
       "shadcn/ui（Base UI）基础组件",
       "Motion 驱动的动画组件库",
@@ -593,6 +601,146 @@ export const zhCN = {
       description: "你访问的地址不属于这个原型，下面都是真实可用的入口。",
       action: "打开演示仪表盘",
       backHome: "返回首页",
+    },
+  },
+
+  /* ---------------------------------------------------------------- 研究工作区
+   *
+   * 只放**界面文案**。/r/[researchId] 上显示的研究问题、论断、原文片段与来源标题
+   * 全部来自 `lib/research/dataset.ts`——那是业务记录内容，不是可翻译的文案
+   * （见 lib/i18n/index.ts 的「覆盖范围」一节）。
+   *
+   * 因此这里的键描述的是**界面骨架**（「论断第几条」「需要哪类材料」），
+   * 而不是某一条具体的研究结论。
+   */
+  research: {
+    meta: {
+      titleFallback: "研究工作区",
+      description: "一条纵向论证链：论断、直接附着的原文，以及尚未被处理的缺口。",
+    },
+
+    /** Running Head —— 单行，不是 TopNav。 */
+    head: {
+      kind: "研究工作代号",
+      owner: "研究者",
+      scopeIn: "范围内",
+      scopeOut: "范围外",
+      firstVisualLabel: "第一视觉",
+      openTensions: "未处理张力",
+      openTensionsUnit: "项",
+      openTensionsNone: "无",
+    },
+
+    /** Anchored Question —— sticky。 */
+    question: {
+      label: "研究问题",
+      contextLabel: "论证上下文",
+    },
+
+    /** Argument Chain。 */
+    chain: {
+      label: "论证链",
+      /** 组标签。主问题那一组不显示它，因为问题本身已经钉在页面顶端。 */
+      subQuestionLabel: "子问题",
+      /** 主问题那一组给读屏用户的分组名（视觉上不重复那句问句）。 */
+      rootGroupLabel: "直接回答研究问题的论断",
+      claimLabel: (n: number) => `论断 ${n}`,
+      citations: (n: number) => `${n} 处引用`,
+      noCitations: "尚无引用",
+      /** 依据状态。与 domain 的 `ClaimBasisStatus` 四值一一对应。 */
+      basis: {
+        unsupported: "尚无支持",
+        supported: "有支持，无反驳",
+        contested: "有支持，也有反驳",
+        invalidated: "依据已失效",
+      },
+      /** 证据强度阶梯 0–4。整数，不是百分比。 */
+      confidence: (level: number) => `证据强度 ${level}`,
+    },
+
+    /** 缺口——本屏最重要的元素。 */
+    gap: {
+      /** 「断点」——空槽边缘上的那个标签。 */
+      breakLabel: "断点",
+      /** 空槽里的话。这是用户第一眼要读到的一句。 */
+      emptySlot: "尚无证据支撑",
+      /** 「这一栏为什么是空的」——只有 missing-evidence 类的缺口会说这句话。 */
+      emptyBecause: {
+        /** `unsupported-claim` */
+        unsupported: "没有任何一条证据链接指向这条论断。",
+        /** `stale-source` */
+        stale: "它引用的来源已无法核对，那一处引用不能算数。",
+      },
+      /** 需要哪类材料。 */
+      requiresLabel: "需要哪类材料",
+      requiresSourceType: "一手材料",
+      requiresSourceTypeAny: "任何可核对的材料",
+      requiresRecency: (year: number) => `发表于 ${year} 年之后的材料`,
+      requiresRecencyNone: "对时间没有额外要求",
+      requiresSubject: (subject: string) => `直接指向「${subject}」的材料`,
+      /** 它属于哪个子问题。 */
+      answersQuestion: (question: string) => `它要回答的是「${question}」`,
+      /** 行动。本阶段只负责把这条论断带回视野，不实现处置流程。 */
+      focusAction: "定位到这条论断",
+      /** 仍然有效但不足以支撑结论的张力：在论断上打标记，不画空槽。 */
+      flagLabel: "待处理",
+    },
+
+    /** Tension Rail —— 桌面右侧窄带 / 移动端底部抽屉。 */
+    rail: {
+      label: "未处理",
+      openCount: (n: number) => `${n} 项未处理`,
+      closedSummary: (n: number) => `已闭合 ${n} 项`,
+      closedTraceHint: "轨迹待接入",
+      goToClaim: "定位到这条论断",
+      empty: "没有未处理的缺口。",
+      close: "收起清单",
+      open: "展开清单",
+      /** kind → 界面词。与 domain 的 `TensionKind` 一一对应。 */
+      kind: {
+        "unsupported-claim": "无证据支撑",
+        "contradictory-evidence": "存在反驳证据",
+        "single-source": "单一来源",
+        "stale-source": "来源已失效",
+        "low-quality-evidence": "来源质量偏低",
+      },
+      /** severity → 界面词。 */
+      severity: {
+        blocking: "阻断",
+        notable: "注意",
+      },
+      subjectClaim: (n: number) => `论断 ${n}`,
+    },
+
+    /** 证据片段。 */
+    evidence: {
+      label: "证据",
+      /** 「还有 N 条」。 */
+      more: (n: number) => `还有 ${n} 条`,
+      less: "收起",
+      page: (n: number) => `第 ${n} 页`,
+      anchor: (a: string) => `锚点 ${a}`,
+      timecode: (s: number) => {
+        const minutes = Math.floor(s / 60)
+        const seconds = s % 60
+        return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`
+      },
+      passageLabel: "原文",
+      sourceLabel: "来源",
+      sourceMissing: "来源无法解析",
+      /** 来源已失效：这条引用仍然存在，但无法回去核对。 */
+      sourceInvalid: "引用不可核对",
+      /** 展开区域的可访问说明。 */
+      revealHint: "展开原文",
+      collapseHint: "收起原文",
+    },
+
+    /** 找不到这项研究时的兜底。**不给死胡同**——下面是真实可用的入口。 */
+    notFound: {
+      metaTitle: "找不到这项研究",
+      title: "这项研究不存在",
+      description: "当前数据集里只有一项研究，它在本产品里是唯一的研究快照。",
+      action: "打开研究工作区",
     },
   },
 

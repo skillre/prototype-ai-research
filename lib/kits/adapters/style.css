@@ -1,0 +1,38 @@
+/**
+ * Kits 适配层 · 别名 · Style Pack 的 CSS 缝。
+ *
+ * ===========================================================================
+ * 这个文件属于**产品**，不属于 Kits。
+ * ===========================================================================
+ *
+ * ## 它为什么存在
+ *
+ * 产品的溯源规则（`tests/factory-contract.spec.ts`）要求：**产品源码不得出现
+ * 具体 Kits 资产 id**。那条规则是对的——把 pack 名抄进 JSX 的那一刻，
+ * 换 pack 的那天产品不会报错，只会静默过期。
+ *
+ * 但它与另一条规则撞上了：`import "@/lib/kits/adapters/style-instrument.css"`
+ * 这条路里**含资产名**。于是「产品源码」在字面上写出了它是哪一套 pack。
+ *
+ * 解决办法不是放宽规则，是**再加一层别名**：
+ *
+ *     installed/（Kits 托管）
+ *          ↓
+ *     adapters/style-<id>.css（Kits 生成的缝，含 id —— 但这在 lib/kits/ 里，豁免）
+ *          ↓
+ *     adapters/style.css（← 你在这里：产品的稳定入口，不含任何 id）
+ *          ↓
+ *     产品代码
+ *
+ * 产品 import 的是 `style.css`。换 pack 时改的是下面那一行，
+ * 而不是散落各处的 import。
+ *
+ * ## 为什么不是把 style-instrument.css 改名
+ *
+ * 那个文件由 `kits add` 生成、由 `kits doctor` 的 `adapters-template` 检查版本。
+ * 改名 = 让 doctor 认为适配层缺失 = 让重新安装去覆盖一个产品文件。
+ * 别名层不碰 Kits 的任何东西。
+ */
+
+@import "./style-instrument.css";
+
