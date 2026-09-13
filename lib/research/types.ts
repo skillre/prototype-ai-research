@@ -17,11 +17,18 @@
  * | 类别 | 谁来写 | 例子 |
  * |---|---|---|
  * | **记录** | 人（或 AI 起草 + 人确认） | Claim.text、EvidenceLink.stance |
- * | **派生** | 纯函数，永远重算，从不存储 | confidenceDerived、basisStatus、Tension 事实字段 |
+ * | **派生** | 纯函数，永远重算，**从不作为字段存在** | `deriveClaimConfidence`、`deriveClaimBasisStatus`、Tension 事实 |
  * | **处置** | 人，且必须留存 | TensionDisposition.resolution |
  *
  * 把「派生」当成「记录」存下来，就会得到第二个事实来源，然后它与第一个漂移。
- * 这就是为什么 `Tension` 在本文件里没有 `resolution` 字段——它属于 disposition，不属于 tension。
+ *
+ * **本文件里没有任何派生字段。** 这一条是刻意的，并且曾经不是这样：早期版本的
+ * `Claim` 上有一个 `confidenceDerived?: EvidenceLevel`，虽然从没被写入过，但它的
+ * **存在本身**就是在邀请人往里写值——而一旦有人写了，就会得到一个会静默漂移、
+ * 且不会触发任何不变量的第二事实来源。类型层不应该留下这种陷阱，所以它被删掉了。
+ * 证据强度现在只由 `deriveClaimConfidence()` 计算。
+ *
+ * 同理，`Tension` 没有 `resolution` 字段——它属于 disposition，不属于 tension。
  */
 
 /* -------------------------------------------------------------------------- */
@@ -61,6 +68,22 @@ export type SourceType = "primary" | "secondary" | "tertiary" | "unknown"
  */
 export type SourceValidity = "ok" | "stale" | "missing"
 
+/**
+ * 论断的语义类型。
+ *
+ * > **这是一个 declared semantic，当前不参与任何 derived rule。**
+ *
+ * 明确写下来是因为它有被误读的风险：没有任何不变量、任何派生函数读这个字段。
+ * 它记录的是研究者的**意图**（「我这是在预测，不是在陈述」），而不是一条会被
+ * 执行的规则。
+ *
+ * 保留它的理由：断言型与预测型论断在「A 路线与 B 路线哪个先跑出来」这个问题里
+ * 是**真实不同**的两类东西。它在 Phase D 之后大概率会参与证据强度的判断
+ * （预测不该和已发生的事实同权）。
+ *
+ * **不要为了让字段「有用」而临时加一条假规则。** 等真实需要出现时，
+ * 规则、测试、以及消费它的派生函数**一起**进来。
+ */
 export type ClaimKind = "assertion" | "prediction" | "definition"
 
 /**
@@ -181,13 +204,6 @@ export interface Source {
   retrievedAt: IsoTimestamp
   sourceType: SourceType
   validity: SourceValidity
-  /**
-   * 抓取时的内容指纹。
-   *
-   * 存在理由很具体：来源会变。没有它，「我引用的那段还在不在」这个问题无法回答，
-   * 而 `validity` 只能靠人工维护——人工维护的状态会腐烂。
-   */
-  contentHash: string
 }
 
 /**
@@ -222,13 +238,6 @@ export interface Claim {
   text: string
   kind: ClaimKind
   status: ClaimStatus
-  /**
-   * **派生字段，从不存储、只由 `deriveClaimConfidence` 计算。**
-   *
-   * 类型上留在这里是因为它是 Claim 的一部分语义；但 `ResearchData.claims`
-   * 里的对象**不含**它。投影函数负责在读取时算出来。
-   */
-  confidenceDerived?: EvidenceLevel
   authoredBy: AuthoredBy
   /**
    * AI 起草的论断在被人工确认之前不算数。

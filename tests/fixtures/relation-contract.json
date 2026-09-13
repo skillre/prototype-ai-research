@@ -1,0 +1,100 @@
+{
+  "contractVersion": "1.0.0",
+  "order": [
+    "contradicts",
+    "supports",
+    "qualifies",
+    "context"
+  ],
+  "stances": {
+    "contradicts": {
+      "stance": "contradicts",
+      "label": "反驳",
+      "glyph": "counter-mark",
+      "order": 1,
+      "form": "reverse-arrow",
+      "lineStyle": "reverse",
+      "confidenceRole": "counter",
+      "interaction": {
+        "primary": "reveal-passage",
+        "navigation": "inline"
+      },
+      "a11y": {
+        "labelPrefix": "反驳",
+        "accessibleNameTemplate": "{label} · {locator} · 原文：{text}",
+        "claimAnnouncement": "本条存在反驳证据",
+        "priority": 1
+      },
+      "mobile": {
+        "labelTemplate": "{label} · {locator}",
+        "showsConnector": false
+      }
+    },
+    "supports": {
+      "stance": "supports",
+      "label": "支持",
+      "glyph": "support-mark",
+      "order": 2,
+      "form": "solid-attached",
+      "lineStyle": "solid",
+      "confidenceRole": "supporting",
+      "interaction": {
+        "primary": "reveal-passage",
+        "navigation": "inline"
+      },
+      "a11y": {
+        "labelPrefix": "支持",
+        "accessibleNameTemplate": "{label} · {locator} · 原文：{text}",
+        "priority": 2
+      },
+      "mobile": {
+        "labelTemplate": "{label} · {locator}",
+        "showsConnector": true
+      }
+    },
+    "qualifies": {
+      "stance": "qualifies",
+      "label": "限定",
+      "glyph": "qualifier-mark",
+      "order": 3,
+      "form": "notched",
+      "lineStyle": "dashed",
+      "confidenceRole": "limiting",
+      "interaction": {
+        "primary": "reveal-passage",
+        "navigation": "inline"
+      },
+      "a11y": {
+        "labelPrefix": "限定",
+        "accessibleNameTemplate": "{label} · {locator} · 原文：{text}",
+        "priority": 3
+      },
+      "mobile": {
+        "labelTemplate": "{label} · {locator}",
+        "showsConnector": false
+      }
+    },
+    "context": {
+      "stance": "context",
+      "label": "背景",
+      "glyph": "context-mark",
+      "order": 4,
+      "form": "recessed",
+      "lineStyle": "none",
+      "confidenceRole": "neutral",
+      "interaction": {
+        "primary": "reveal-passage",
+        "navigation": "inline"
+      },
+      "a11y": {
+        "labelPrefix": "背景",
+        "accessibleNameTemplate": "{label} · {locator} · 原文：{text}",
+        "priority": 4
+      },
+      "mobile": {
+        "labelTemplate": "{label} · {locator}",
+        "showsConnector": false
+      }
+    }
+  }
+}

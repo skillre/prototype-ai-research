@@ -118,7 +118,6 @@ const sources: Source[] = [
     retrievedAt: T_COLLECT,
     sourceType: "secondary",
     validity: "ok",
-    contentHash: "sha256:4f1a9c2e",
   },
   {
     id: "src-equipment-whitepaper",
@@ -129,7 +128,6 @@ const sources: Source[] = [
     retrievedAt: T_COLLECT,
     sourceType: "primary",
     validity: "ok",
-    contentHash: "sha256:8b30dd17",
   },
   {
     id: "src-association-stats",
@@ -140,7 +138,6 @@ const sources: Source[] = [
     retrievedAt: T_COLLECT,
     sourceType: "secondary",
     validity: "ok",
-    contentHash: "sha256:1c77e5b0",
   },
   {
     id: "src-operator-interviews",
@@ -151,7 +148,6 @@ const sources: Source[] = [
     retrievedAt: T_COLLECT,
     sourceType: "primary",
     validity: "ok",
-    contentHash: "sha256:9ade4013",
   },
   {
     id: "src-media-cost-report",
@@ -162,7 +158,6 @@ const sources: Source[] = [
     retrievedAt: T_COLLECT,
     sourceType: "secondary",
     validity: "ok",
-    contentHash: "sha256:2e6b8a94",
   },
   {
     id: "src-paid-summary",
@@ -173,7 +168,6 @@ const sources: Source[] = [
     retrievedAt: T_COLLECT,
     sourceType: "tertiary",
     validity: "ok",
-    contentHash: "sha256:77c1f203",
   },
   {
     id: "src-legacy-forecast",
@@ -186,7 +180,6 @@ const sources: Source[] = [
     // 这一份**已经失效**：原文页面在两周前改版，引用的段落找不到了。
     // 它是 stale-source 张力的来源，也是 basisStatus = invalidated 的来源。
     validity: "stale",
-    contentHash: "sha256:05aa9e31",
   },
   {
     id: "src-internal-dd",
@@ -197,7 +190,6 @@ const sources: Source[] = [
     retrievedAt: T_COLLECT,
     sourceType: "primary",
     validity: "ok",
-    contentHash: "sha256:cd42b18f",
   },
 ]
 
