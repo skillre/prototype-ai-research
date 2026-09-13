@@ -137,9 +137,14 @@ export interface ReviewerCopy {
   critiqueNext: Record<TensionKind, string>
   /** 读法检查（不是张力）：把「没找到反例」当成「验证通过」。 */
   readingTrap: { text: string; next: string }
-  /** 「已接受为待处理」——一条意见被采纳之后仍然留在板上的原因。 */
-  acknowledgedSuffix: string
-  /** 驳回之后留下的历史痕迹前缀。 */
+  /**
+   * 驳回之后留下的历史痕迹前缀。
+   *
+   * 注意这里**没有**「已接受为待处理」的文案：那是一个**状态词**，
+   * 由组件从词典直接读（`reviewer.stateAcknowledged`）。
+   * 把它也塞进这份注入对象里就会有两个来源，而第二个不会有消费方——
+   * 与 Phase D 删掉的那三个死键是同一类问题。
+   */
   rejectedPrefix: string
 }
 

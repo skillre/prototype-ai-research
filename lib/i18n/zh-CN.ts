@@ -831,7 +831,6 @@ export const zhCN = {
         text: "「没找到反例」不等于「已验证」。这条论断有支持、也确实没有反驳，但它仍然没有通过验证。",
         next: "看它下面的依据状态：真正拦住它的是那一项，不是缺少反驳。",
       },
-      acknowledgedSuffix: "已接受为待处理",
       rejectedPrefix: "已驳回：",
     },
 

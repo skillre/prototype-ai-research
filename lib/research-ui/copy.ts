@@ -39,6 +39,5 @@ export const REVIEWER_COPY: ReviewerCopy = {
   critiqueText: messages.research.reviewer.critiqueText,
   critiqueNext: messages.research.reviewer.critiqueNext,
   readingTrap: messages.research.reviewer.readingTrap,
-  acknowledgedSuffix: messages.research.reviewer.acknowledgedSuffix,
   rejectedPrefix: messages.research.reviewer.rejectedPrefix,
 }
