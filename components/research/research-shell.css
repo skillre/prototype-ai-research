@@ -1394,3 +1394,675 @@
     display: none;
   }
 }
+
+/* =============================================================================
+ * §6 · Phase E+F —— 处置与审稿意见
+ *
+ * 这一整段的立场：**加的是判断的痕迹，不是新的容器**。
+ *
+ * 所以这里没有一处 `box-shadow`、没有一处装饰性渐变、没有一处大圆角卡片。
+ * 新表面全部靠「左规则线 + 等宽标签 + 底色的两级差」表达——
+ * 与 §3 的链条是同一套语言，否则一张处置面板就会开始看起来像一个弹窗组件库。
+ *
+ * 层级预算（这是硬约束，有测试）：
+ *
+ *   缺口空槽边框   --kits-color-ink-muted   ← 主角
+ *   ─────────────────────────────────────
+ *   处置面板       --kits-color-rule-strong
+ *   审稿意见       --kits-color-rule        ← 最弱
+ *
+ * 审稿意见**永远不能比缺口更抢眼**。它比缺口整整弱两级。
+ * ========================================================================== */
+
+/* -----------------------------------------------------------------------------
+ * §6a · Rail 的结构改造
+ *
+ * Phase D 每条是一个 `<button>`。Phase E 要加处置入口，而按钮不能嵌套按钮，
+ * 所以现在是一个 `<li>` 容器里放**两个兄弟控件**。
+ * -------------------------------------------------------------------------- */
+
+.rs-rail__row {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border-bottom: var(--kits-border-width) var(--kits-border-style)
+    var(--kits-border-hairline-color);
+}
+
+.rs-rail__item-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--kits-space-xs);
+  align-items: start;
+}
+
+/* 定位按钮：保留 Phase D 的排版，但现在它是网格里的第一个单元。 */
+.rs-rail__item {
+  display: grid;
+  grid-template-columns: calc(var(--kits-space-unit) * 5) minmax(0, 1fr);
+  gap: var(--kits-space-xs);
+  align-items: start;
+  width: 100%;
+  padding: var(--kits-space-sm) var(--kits-space-2xs);
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+  transition: background-color var(--kits-dur-instant) var(--kits-ease-linear);
+}
+
+.rs-rail__item:hover {
+  background-color: var(--kits-color-surface);
+}
+
+.rs-rail__item:focus-visible,
+.rs-rail__dispose:focus-visible,
+.rs-rail__item--goto:focus-visible {
+  outline: var(--kits-border-width-strong) var(--kits-border-style)
+    var(--kits-color-focus);
+  outline-offset: -2px;
+}
+
+/* 处置入口：与定位按钮并排，但明确是一个**不同的动作**。
+   它的高度与 rail 条目对齐，避免两个控件在视觉上合并成一个。 */
+.rs-rail__dispose {
+  margin-top: var(--kits-space-sm);
+  margin-right: var(--kits-space-2xs);
+  white-space: nowrap;
+}
+
+.rs-rail__row[data-panel-open="true"] .rs-rail__dispose {
+  background: var(--kits-color-ink);
+  color: var(--kits-color-surface);
+  border-color: var(--kits-color-ink);
+}
+
+/* -----------------------------------------------------------------------------
+ * §6b · 处置面板（桌面内联 / 移动抽屉共用同一个组件）
+ * -------------------------------------------------------------------------- */
+
+.rs-disposition {
+  display: flex;
+  flex-direction: column;
+  gap: var(--kits-space-sm);
+  padding: var(--kits-space-sm);
+  margin: var(--kits-space-2xs) var(--kits-space-2xs) var(--kits-space-sm);
+  border-inline-start: var(--kits-border-width-strong) var(--kits-border-style)
+    var(--kits-color-rule-strong);
+  background-color: var(--kits-color-surface);
+}
+
+.rs-disposition__title {
+  display: flex;
+  align-items: center;
+  gap: var(--kits-space-xs);
+  margin: 0;
+  font-family: var(--kits-font-mono);
+  font-size: var(--kits-label-size);
+  letter-spacing: var(--kits-label-tracking);
+  text-transform: var(--kits-label-transform);
+  font-weight: var(--kits-label-weight);
+}
+
+.rs-disposition__subject {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--kits-space-xs);
+  margin: 0;
+  color: var(--kits-color-ink-muted);
+}
+
+.rs-disposition__choices {
+  display: flex;
+  flex-direction: column;
+  gap: var(--kits-space-xs);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+/* 每个出口是一行可点的标签（原生单选 + 文字）。
+   用原生 input 而不是自绘控件：它在 DOM 与无障碍树里一定是 1:1 的。 */
+.rs-disposition__choice {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--kits-space-xs);
+  align-items: start;
+  padding: var(--kits-space-2xs);
+  cursor: pointer;
+}
+
+.rs-disposition__choice:hover {
+  background-color: var(--kits-color-surface-sunken);
+}
+
+.rs-disposition__choice:has(input:focus-visible) {
+  outline: var(--kits-border-width-strong) var(--kits-border-style)
+    var(--kits-color-focus);
+  outline-offset: -2px;
+}
+
+.rs-disposition__choice input {
+  margin-block-start: 0.35em;
+  accent-color: var(--kits-color-accent);
+}
+
+.rs-disposition__choice-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--kits-space-2xs);
+  min-width: 0;
+}
+
+.rs-disposition__choice-label {
+  font-family: var(--kits-font-mono);
+  font-size: var(--kits-body-size);
+  font-weight: 600;
+  color: var(--kits-color-ink);
+}
+
+.rs-disposition__choice-hint {
+  font-family: var(--kits-font-body);
+  font-size: var(--kits-body-size);
+  line-height: var(--kits-body-line);
+  color: var(--kits-color-ink-muted);
+}
+
+/* 两个出口的定义差别。这是全屏最重要的一段说明文字。 */
+.rs-disposition__distinction {
+  margin: 0;
+  padding-inline-start: var(--kits-space-xs);
+  border-inline-start: var(--kits-border-width) var(--kits-border-style)
+    var(--kits-color-rule-strong);
+  font-family: var(--kits-font-body);
+  font-size: var(--kits-body-size);
+  line-height: var(--kits-body-line);
+  color: var(--kits-color-ink-muted);
+}
+
+.rs-disposition__field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--kits-space-2xs);
+}
+
+.rs-disposition__reason {
+  width: 100%;
+  min-height: calc(var(--kits-space-unit) * 16);
+  padding: var(--kits-space-xs);
+  border: var(--kits-border-width) var(--kits-border-style)
+    var(--kits-color-rule-strong);
+  border-radius: var(--kits-radius-control);
+  background-color: var(--kits-color-surface-raised);
+  color: var(--kits-color-ink);
+  font-family: var(--kits-font-body);
+  font-size: var(--kits-body-size);
+  line-height: var(--kits-body-line);
+  resize: vertical;
+}
+
+.rs-disposition__reason:focus-visible {
+  outline: var(--kits-border-width-strong) var(--kits-border-style)
+    var(--kits-color-focus);
+  outline-offset: 1px;
+}
+
+/* 被守卫拒绝：一行小标题 + 守卫给的理由。
+   刻意**不是**红色大警告——它是这个产品最主要的教学时刻，不是错误。 */
+.rs-disposition__rejected {
+  display: flex;
+  flex-direction: column;
+  gap: var(--kits-space-2xs);
+  padding: var(--kits-space-xs);
+  border-inline-start: var(--kits-border-width-strong) var(--kits-border-style)
+    var(--kits-color-accent-2);
+  background-color: var(--kits-color-surface-sunken);
+}
+
+.rs-disposition__rejected-title {
+  margin: 0;
+  font-family: var(--kits-font-mono);
+  font-size: var(--kits-label-size);
+  letter-spacing: var(--kits-label-tracking);
+  text-transform: var(--kits-label-transform);
+  font-weight: var(--kits-label-weight);
+  color: var(--kits-color-accent-2);
+}
+
+.rs-disposition__issues {
+  display: flex;
+  flex-direction: column;
+  gap: var(--kits-space-2xs);
+  margin: 0;
+  padding-inline-start: var(--kits-space-xs);
+  font-family: var(--kits-font-body);
+  font-size: var(--kits-body-size);
+  line-height: var(--kits-body-line);
+  color: var(--kits-color-ink);
+}
+
+.rs-disposition__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--kits-space-xs);
+}
+
+/* -----------------------------------------------------------------------------
+ * §6c · 已知局限 vs 已解决 —— 必须一眼不同
+ *
+ * 已知局限：菱形标记 + 理由引文 + 日期 + 「对应的缺口仍然存在」
+ * 已解决：  只有一行被划掉的词
+ *
+ * 两者共用一种样式的话，「接受」会慢慢看起来像「解决」——那正是这一阶段
+ * 存在的全部理由要防的事。
+ * -------------------------------------------------------------------------- */
+
+.rs-rail__group-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--kits-space-xs);
+  margin: 0;
+  padding-block: var(--kits-space-xs) var(--kits-space-2xs);
+  border-top: var(--kits-border-width) var(--kits-border-style)
+    var(--kits-color-rule);
+}
+
+.rs-rail__limitation {
+  display: flex;
+  flex-direction: column;
+  gap: var(--kits-space-2xs);
+  padding: var(--kits-space-sm) var(--kits-space-2xs);
+  border-bottom: var(--kits-border-width) var(--kits-border-style)
+    var(--kits-color-rule);
+}
+
+.rs-rail__limitation-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--kits-space-xs);
+  margin: 0;
+}
+
+/* 菱形：与「未处理」的实心/断裂条**形状不同**，灰度下也分得开。 */
+.rs-rail__limitation-mark {
+  display: inline-block;
+  width: calc(var(--kits-space-unit) * 1.5);
+  height: calc(var(--kits-space-unit) * 1.5);
+  border: var(--kits-border-width-strong) var(--kits-border-style)
+    var(--kits-color-ink-muted);
+  transform: rotate(45deg);
+  flex: none;
+}
+
+.rs-rail__limitation-reason {
+  margin: 0;
+  padding-inline-start: var(--kits-space-sm);
+  border-inline-start: var(--kits-border-width) var(--kits-border-style)
+    var(--kits-color-ink-muted);
+  font-family: var(--kits-font-body);
+  font-size: var(--kits-body-size);
+  line-height: var(--kits-body-line);
+  color: var(--kits-color-ink);
+}
+
+.rs-rail__limitation-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--kits-space-xs);
+  margin: 0;
+  padding-inline-start: var(--kits-space-sm);
+  font-family: var(--kits-font-mono);
+  font-size: var(--kits-label-size);
+  letter-spacing: var(--kits-label-tracking);
+  color: var(--kits-color-ink-muted);
+}
+
+.rs-rail__limitation-goto {
+  align-self: flex-start;
+  margin-inline-start: var(--kits-space-sm);
+}
+
+.rs-rail__resolved {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--kits-space-xs);
+  padding: var(--kits-space-xs) var(--kits-space-2xs);
+  font-family: var(--kits-font-mono);
+  font-size: var(--kits-label-size);
+  letter-spacing: var(--kits-label-tracking);
+  color: var(--kits-color-ink-muted);
+}
+
+/* 已解决 = 被划掉的词。它**没有**理由引文、没有日期、没有追溯按钮——
+   因为它是一句事实，不是一句判断，没有需要被解释的边界。 */
+.rs-rail__resolved-text {
+  text-decoration: line-through;
+  text-decoration-color: var(--kits-color-positive);
+  text-decoration-thickness: var(--kits-border-width-strong);
+}
+
+/* -----------------------------------------------------------------------------
+ * §6d · 移动端处置抽屉
+ * -------------------------------------------------------------------------- */
+
+.rs-sheet-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+}
+
+.rs-sheet-scrim {
+  position: absolute;
+  inset: 0;
+  background: color-mix(in oklab, var(--kits-color-ink) calc(var(--kits-scrim-strength) * 100%), transparent);
+}
+
+.rs-sheet {
+  position: absolute;
+  inset-inline: 0;
+  inset-block-end: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  max-height: 86dvh;
+  overscroll-behavior: contain;
+  border-top: var(--kits-border-width-strong) var(--kits-border-style)
+    var(--kits-color-rule-strong);
+  background-color: var(--kits-color-canvas);
+  padding-block-end: max(var(--kits-space-sm), env(safe-area-inset-bottom));
+}
+
+.rs-sheet__title {
+  margin: 0;
+  padding: var(--kits-space-sm) var(--kits-gutter) var(--kits-space-2xs);
+  font-family: var(--kits-font-mono);
+  font-size: var(--kits-title-size);
+  letter-spacing: 0;
+  font-weight: 600;
+}
+
+.rs-sheet__body {
+  overflow-y: auto;
+  padding-inline: calc(var(--kits-gutter) - var(--kits-space-2xs));
+}
+
+/* 抽屉里的处置面板不需要再画一层左规则线——抽屉本身已经是容器。 */
+.rs-sheet .rs-disposition {
+  margin: 0;
+  border-inline-start: 0;
+  background-color: transparent;
+}
+
+/* -----------------------------------------------------------------------------
+ * §6e · 审稿意见（旁注）
+ *
+ * 层级：比缺口弱**两级**。不是卡片：只有一条左规则线 + 一个类别标签。
+ * -------------------------------------------------------------------------- */
+
+.rs-claim__notes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--kits-space-sm);
+  margin-block-start: var(--kits-space-xs);
+}
+
+.rs-note {
+  display: flex;
+  flex-direction: column;
+  gap: var(--kits-space-2xs);
+  padding-inline-start: var(--kits-space-sm);
+  border-inline-start: var(--kits-border-width) var(--kits-border-style)
+    var(--kits-color-rule);
+}
+
+/* 三类输出各自的形状**不同**，这是 §18 的落点。
+   不是靠颜色区分的：critique 是实心粗线，factual 是细实线，
+   suggestion 是点线——三者在灰度下都分得开。 */
+.rs-note[data-note-class="critique"] {
+  border-inline-start-width: var(--kits-border-width-strong);
+  border-inline-start-style: solid;
+  border-inline-start-color: var(--kits-color-accent-2);
+}
+
+.rs-note[data-note-class="factual"] {
+  border-inline-start-width: var(--kits-border-width);
+  border-inline-start-color: var(--kits-color-ink-muted);
+}
+
+.rs-note[data-note-class="suggestion"] {
+  border-inline-start-style: dotted;
+  border-inline-start-color: var(--kits-color-rule-strong);
+}
+
+/* 已驳回：整条弱化 + 划掉—它进了历史投影，不再是待办。 */
+.rs-note[data-note-state="rejected"] .rs-note__text {
+  text-decoration: line-through;
+  text-decoration-color: var(--kits-color-rule-strong);
+  color: var(--kits-color-ink-muted);
+}
+
+.rs-note__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--kits-space-xs);
+  margin: 0;
+}
+
+.rs-note__class {
+  font-family: var(--kits-font-mono);
+  font-size: var(--kits-label-size);
+  letter-spacing: var(--kits-label-tracking);
+  text-transform: var(--kits-label-transform);
+  font-weight: var(--kits-label-weight);
+  color: var(--kits-color-ink);
+}
+
+.rs-note__provenance,
+.rs-note__tension {
+  font-family: var(--kits-font-mono);
+  font-size: var(--kits-label-size);
+  letter-spacing: var(--kits-label-tracking);
+  color: var(--kits-color-ink-muted);
+}
+
+/* 状态徽章。**只有被处置过才出现**——待处理是默认态，到处挂一个徽章
+   会让它退化成装饰。 */
+.rs-note__state {
+  font-family: var(--kits-font-mono);
+  font-size: var(--kits-label-size);
+  letter-spacing: var(--kits-label-tracking);
+  font-weight: var(--kits-label-weight);
+  padding-inline: var(--kits-space-2xs);
+  border: var(--kits-border-width) var(--kits-border-style)
+    var(--kits-color-rule-strong);
+  color: var(--kits-color-ink);
+}
+
+.rs-note__text {
+  margin: 0;
+  font-family: var(--kits-font-body);
+  font-size: var(--kits-body-size);
+  line-height: var(--kits-body-line);
+  color: var(--kits-color-ink);
+  max-width: var(--kits-body-max-width);
+}
+
+.rs-note__detail,
+.rs-note__passages {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--kits-space-xs);
+  margin: 0;
+  font-family: var(--kits-font-mono);
+  font-size: var(--kits-label-size);
+  letter-spacing: var(--kits-label-tracking);
+  color: var(--kits-color-ink-muted);
+}
+
+/* 下一步：给「指出问题」一个出口，不然它就是一个死胡同。 */
+.rs-note__next {
+  margin: 0;
+  padding-inline-start: var(--kits-space-xs);
+  border-inline-start: var(--kits-border-width) var(--kits-border-style)
+    var(--kits-color-rule);
+  font-family: var(--kits-font-body);
+  font-size: var(--kits-body-size);
+  line-height: var(--kits-body-line);
+  color: var(--kits-color-ink-muted);
+  max-width: var(--kits-body-max-width);
+}
+
+/* Class 3 的免责声明。它必须自己说清「不进入交付物」。 */
+.rs-note__disclaimer {
+  margin: 0;
+  font-family: var(--kits-font-mono);
+  font-size: var(--kits-label-size);
+  letter-spacing: var(--kits-label-tracking);
+  color: var(--kits-color-ink-muted);
+}
+
+.rs-note__actions,
+.rs-note__form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--kits-space-xs);
+}
+
+.rs-note__actions {
+  flex-direction: row;
+  flex-wrap: wrap;
+}
+
+.rs-note__issues {
+  display: flex;
+  flex-direction: column;
+  gap: var(--kits-space-2xs);
+  margin: 0;
+  padding-inline-start: var(--kits-space-xs);
+  font-family: var(--kits-font-body);
+  font-size: var(--kits-body-size);
+  color: var(--kits-color-accent-2);
+}
+
+/* 链条尾部：建议 + 已驳回的历史投影。 */
+.rs-review-tail {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--kits-space-sm);
+  margin-block-start: var(--kits-space-xl);
+  padding-block-start: var(--kits-space-md);
+  border-top: var(--kits-border-width-strong) var(--kits-border-style)
+    var(--kits-color-rule-strong);
+}
+
+.rs-review-tail__note {
+  margin: 0;
+  font-family: var(--kits-font-mono);
+  font-size: var(--kits-label-size);
+  letter-spacing: var(--kits-label-tracking);
+  color: var(--kits-color-ink-muted);
+}
+
+/* -----------------------------------------------------------------------------
+ * §6f · 论断上的「已接受为局限」
+ *
+ * 它与 `rs-claim__flag`（待处理标记）**必须长得不同**：标记是一条竖线，
+ * 局限是一个菱形 + 被引用的理由。
+ * -------------------------------------------------------------------------- */
+
+.rs-claim__limitations {
+  display: flex;
+  flex-direction: column;
+  gap: var(--kits-space-2xs);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rs-claim__limitation {
+  display: flex;
+  flex-direction: column;
+  gap: var(--kits-space-2xs);
+  padding: var(--kits-space-xs) var(--kits-space-sm);
+  border-inline-start: var(--kits-border-width) var(--kits-border-style)
+    var(--kits-color-ink-muted);
+}
+
+.rs-claim__limitation-label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--kits-space-xs);
+  font-family: var(--kits-font-mono);
+  font-size: var(--kits-label-size);
+  letter-spacing: var(--kits-label-tracking);
+  text-transform: var(--kits-label-transform);
+  font-weight: var(--kits-label-weight);
+  color: var(--kits-color-ink);
+}
+
+.rs-claim__limitation-reason {
+  font-family: var(--kits-font-body);
+  font-size: var(--kits-body-size);
+  line-height: var(--kits-body-line);
+  color: var(--kits-color-ink-muted);
+  max-width: var(--kits-body-max-width);
+}
+
+.rs-claim__limitation-meta {
+  font-family: var(--kits-font-mono);
+  font-size: var(--kits-label-size);
+  letter-spacing: var(--kits-label-tracking);
+  color: var(--kits-color-rule-strong);
+}
+
+/* -----------------------------------------------------------------------------
+ * §6g · 移动端
+ * -------------------------------------------------------------------------- */
+
+@media (max-width: 640px) {
+  /* 处置面板在窄屏占满宽度：两个出口的说明文字会折行，
+     挤在窄带宽度里会变成一列竖排字。 */
+  .rs-disposition {
+    margin-inline: 0;
+  }
+
+  .rs-rail__item-actions {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  /* 触控命中区。处置入口是这一屏最需要被点准的控件。 */
+  .rs-rail__dispose {
+    min-height: calc(var(--kits-space-unit) * 8);
+  }
+
+  .rs-note__actions .rs-action {
+    min-height: calc(var(--kits-space-unit) * 8);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rs-rail__item,
+  .rs-disposition__choice {
+    transition: none;
+  }
+}
+
+/* 自动检查得出的批评：说明 + 通往处置的入口。
+   它没有驳回按钮，因为它不是一个 AI 输出——见 reviewer-note.tsx 的说明。 */
+.rs-note__derived-hint {
+  flex-basis: 100%;
+  margin: 0;
+  font-family: var(--kits-font-mono);
+  font-size: var(--kits-label-size);
+  letter-spacing: var(--kits-label-tracking);
+  color: var(--kits-color-ink-muted);
+}

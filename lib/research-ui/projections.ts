@@ -51,8 +51,16 @@ import {
   getRelationPresentation,
   openTensions,
   projectClaimVerification,
+  projectKnownLimitations,
   projectTensions,
+  type KnownLimitation,
 } from "@/lib/research"
+import {
+  projectReviewerBoard,
+  type ReviewerBoard,
+  type ReviewerCopy,
+  type ReviewerNote,
+} from "./reviewer"
 
 /* -------------------------------------------------------------------------- */
 /* 形状                                                                         */
@@ -150,6 +158,16 @@ export interface ClaimProjection {
    * 「尚无证据支撑」的断点，两条陈述互相否认）。
    */
   flags: TensionKind[]
+  /**
+   * 人已经**接受**的局限，挂在这条论断上（Phase E 新增）。
+   *
+   * 它是 `flags` 的下一站：一条张力被接受之后，它不再是「待处理标记」，
+   * 而是一句写下来的边界声明。所以两者必须分开——合并会让「接受」
+   * 看起来像「还在提醒你」。
+   */
+  limitations: KnownLimitation[]
+  /** 附着在这条论断上的审稿意见（critique + factual）。Phase F 新增。 */
+  reviewerNotes: ReviewerNote[]
   /** 生效的张力总数（含已处置）。用于「已闭合 N 项」。 */
   tensionCount: number
 }
@@ -188,7 +206,24 @@ export interface ArgumentChain {
   claims: ClaimProjection[]
   openTensions: Tension[]
   closedTensions: Tension[]
-  /** 第一视觉主角：**第一个**未处理空缺的论断。移动端「最大缺口」用它。 */
+  /**
+   * 三个处置状态**分开**投影（Phase E）。
+   *
+   * ```
+   * openTensions       未处理   —— 洞还在，还没人决定怎么办
+   * resolvedTensions   已解决   —— 洞被事实填上了（resolution: resolved）
+   * limitations        已知局限 —— 洞还在，人决定带着它交付
+   * ```
+   *
+   * `closedTensions` 保留是为了「已闭合 N 项」那个计数（= 后两者之和），
+   * 但**界面不得只显示它**：把 resolved 与 accepted-as-limitation 合成
+   * 「已处理」，正是本阶段存在的全部理由要防的那一件事。
+   */
+  resolvedTensions: Tension[]
+  limitations: KnownLimitation[]
+  /** Phase F —— 审稿意见板（三类分开持有）。 */
+  reviewer: ReviewerBoard
+  /** 第一视觉主角：**第一个**未处理空缺的论断。首屏卡片用它。 */
   primaryGap: { claim: ClaimProjection; gap: ClaimGap } | null
   /** 论断 id → 序号。Tension Rail 要把张力翻成「论断 N」。 */
   claimIndex: Map<Id, number>
@@ -319,11 +354,58 @@ export function evidenceWindow(
 export function projectArgumentChain(
   data: ResearchData,
   labels: { page: (n: number) => string; anchor: (a: string) => string; timecode: (s: number) => string },
+  reviewerCopy: ReviewerCopy,
 ): ArgumentChain {
   const claims = activeClaims(data)
   const tensions = projectTensions(data)
   const open = openTensions(tensions)
+
+  /* 三个处置状态分开取。`closedTensions` 只用于兼容计数——
+     界面读的是 `resolvedTensions` 与 `limitations` 两个**不同**的清单。 */
   const closed = tensions.filter((tension) => tension.resolution !== null)
+  const resolved = tensions.filter((tension) => tension.resolution === "resolved")
+  const limitations = projectKnownLimitations(data)
+  const reviewer = projectReviewerBoard(data, reviewerCopy, labels)
+
+  const limitationsByClaim = new Map<Id, KnownLimitation[]>()
+  for (const limitation of limitations) {
+    if (!limitation.claimId) continue
+    const list = limitationsByClaim.get(limitation.claimId)
+    if (list) list.push(limitation)
+    else limitationsByClaim.set(limitation.claimId, [limitation])
+  }
+
+  const notesByClaim = new Map<Id, ReviewerNote[]>()
+  for (const note of [...reviewer.critiques, ...reviewer.factuals]) {
+    if (!note.claimId) continue
+    const list = notesByClaim.get(note.claimId)
+    if (list) list.push(note)
+    else notesByClaim.set(note.claimId, [note])
+  }
+
+  /*
+   * ⚠ 这里是 Phase E 修正的一个**真实的界面缺陷**，值得写下来。
+   *
+   * 一开始 gaps 与 flags 都从 `openTensions` 取。后果：用户一旦把一条
+   * 「无证据支撑」接受为已知局限，那条论断上的**虚线空槽就消失了**——
+   * 洞变成了看不见的。而那正是这一整个产品在防的事：屏幕上的自欺
+   * 和结论里的自欺是同一件事。
+   *
+   * 根因是两类东西被当成了同一类：
+   *
+   *   gap（空槽）   **事实**——那一栏是空的。接受一个局限不会把栏填上。
+   *   flag（标记）  **待办**——这里需要你处理。接受之后就处理完了。
+   *
+   * 所以现在：空槽来自**全部**被推导出来的张力（处置与否都不影响它），
+   * 标记只来自**未处理**的张力。这也让首屏那张「最大缺口」卡片在用户
+   * 接受局限之后**不会换一条**——它仍然指着同一个真实的洞。
+   */
+  const gapsByClaim = new Map<Id, Tension[]>()
+  for (const tension of tensions) {
+    const list = gapsByClaim.get(tension.subject.claimId)
+    if (list) list.push(tension)
+    else gapsByClaim.set(tension.subject.claimId, [tension])
+  }
 
   const openByClaim = new Map<Id, Tension[]>()
   for (const tension of open) {
@@ -354,9 +436,12 @@ export function projectArgumentChain(
     claimIndex.set(claim.id, index)
     const question = getQuestion(claim.questionId)
     return projectClaim(data, claim, index, question, {
-      openGaps: openByClaim.get(claim.id) ?? [],
+      gaps: gapsByClaim.get(claim.id) ?? [],
+      openTensions: openByClaim.get(claim.id) ?? [],
       tensionCount: tensionCountByClaim.get(claim.id) ?? 0,
       labels,
+      limitations: limitationsByClaim.get(claim.id) ?? [],
+      reviewerNotes: notesByClaim.get(claim.id) ?? [],
     })
   })
 
@@ -405,6 +490,9 @@ export function projectArgumentChain(
     claims: projected,
     openTensions: open,
     closedTensions: closed,
+    resolvedTensions: resolved,
+    limitations,
+    reviewer,
     primaryGap,
     claimIndex,
   }
@@ -417,10 +505,20 @@ export function projectClaim(
   index: number,
   question: Question | undefined,
   options: {
-    /** 未处置的张力。由调用方从 `openTensions` 取，本函数负责分流成 gaps / flags。 */
-    openGaps: Tension[]
+    /**
+     * 这条论断上**全部**被推导出来的张力（含已处置的）。
+     * 本函数只把「那一栏是空的」那些分流成 `gaps`——因为空槽描述的是**事实**，
+     * 它不会因为人接受了一个局限而消失。
+     */
+    gaps: Tension[]
+    /** 只含**未处置**的张力。它们才产生「待处理」标记。 */
+    openTensions: Tension[]
     tensionCount: number
     labels: { page: (n: number) => string; anchor: (a: string) => string; timecode: (s: number) => string }
+    /** 这条论断上已经被接受的局限。 */
+    limitations: KnownLimitation[]
+    /** 附着在这条论断上的审稿意见。 */
+    reviewerNotes: ReviewerNote[]
   },
 ): ClaimProjection {
   const evidence = projectClaimEvidence(data, claim.id, options.labels)
@@ -431,17 +529,20 @@ export function projectClaim(
     evidenceCountByStance[item.stance] = (evidenceCountByStance[item.stance] ?? 0) + 1
   }
 
-  /* 缺口的分流：只有「那一栏空着」的才成为空槽，其余成为标记。
+  /* 缺口的分流：只有「那一栏空着」的才成为空槽。
      这一条**必须**在这里做，而不是在组件里——组件拿不到 `evidence` 的全貌，
      它会（第一版就是）把有证据的论断也画成空槽。 */
   const gaps: ClaimGap[] = []
-  const flags: TensionKind[] = []
-  for (const tension of options.openGaps) {
+  for (const tension of options.gaps) {
     if (isMissingEvidenceKind(tension.kind)) {
       gaps.push(buildGap(data, claim, tension, question))
-    } else {
-      flags.push(tension.kind)
     }
+  }
+
+  /* 标记只来自**未处理**的张力：它是一条待办，处置完就该消失。 */
+  const flags: TensionKind[] = []
+  for (const tension of options.openTensions) {
+    if (!isMissingEvidenceKind(tension.kind)) flags.push(tension.kind)
   }
 
   return {
@@ -455,6 +556,8 @@ export function projectClaim(
     verified: verification.verified,
     gaps,
     flags,
+    limitations: options.limitations,
+    reviewerNotes: options.reviewerNotes,
     tensionCount: options.tensionCount,
   }
 }

@@ -14,6 +14,7 @@ import {
   projectClaimEvidence,
   type ClaimEvidence,
 } from "../lib/research-ui"
+import { RESEARCH_LABELS, REVIEWER_COPY } from "../lib/research-ui/copy"
 
 /**
  * 第一屏（Argument Chain）—— Phase D。
@@ -42,14 +43,14 @@ const ROUTE = `/r/${RESEARCH_ID}`
 /** 数据集里那条真正没有证据的论断。它是本屏的主角，不是随便挑的一条。 */
 const UNSUPPORTED_CLAIM_ID = "clm-cost-inflection"
 
-const e = {
-  page: (n: number) => `第 ${n} 页`,
-  anchor: (a: string) => `锚点 ${a}`,
-  timecode: (s: number) => `t${s}`,
-}
-
-/** 与页面用**同一套**组装函数。UI 测试不该另写一遍业务规则。 */
-const chain = projectArgumentChain(loadBearingResearch, e)
+/**
+ * 与页面用**同一套**组装函数与**同一份词典绑定**。
+ *
+ * 这里刻意不另写一份 labels/copy：测试里自己拼一份，就等于把
+ * 「界面到底显示了什么」变成两个可能漂移的说法——而那种漂移不会报错。
+ * `@/lib/research-ui/copy` 的存在就是为了让两边能共用同一份。
+ */
+const chain = projectArgumentChain(loadBearingResearch, RESEARCH_LABELS, REVIEWER_COPY)
 
 function claims() {
   return chain.claims
@@ -447,21 +448,44 @@ test.describe("4 · 证据就地展开", () => {
 /* -------------------------------------------------------------------------- */
 
 test.describe("5 · Tension Rail", () => {
-  test("桌面窄带只列未处理的张力", async ({ page }) => {
+  test("桌面窄带：未处理的张力可处置，已处置的**不在**未处理段里", async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 })
     await gotoResearch(page)
     const rail = page.locator(".rs-rail-desktop")
     await expect(rail).toBeVisible()
 
-    const items = rail.locator(".rs-rail__item")
-    await expect(items).toHaveCount(chain.openTensions.length)
+    await expect(rail.locator(".rs-rail__row")).toHaveCount(chain.openTensions.length)
 
-    // 已闭合的**不得**出现在主 rail 里，只留一句计数。
-    const closedIds = chain.closedTensions.map((tension) => tension.id)
-    for (const id of closedIds) {
-      await expect(rail.locator(`[data-tension-id="${id}"]`)).toHaveCount(0)
+    /*
+     * ⚠ Phase E 修改了这条断言，理由是本阶段的核心要求。
+     *
+     * Phase D 时这里断言一句「已闭合 N 项」——它把 resolved 与
+     * accepted-as-limitation 合并成了一个数。Phase E 的 §4 明确要求
+     * 这两个状态**不得**被合并显示，因为它们说的不是一件事：
+     * 「事实变了」和「我决定带着它交付」。
+     *
+     * 所以那句合并计数被拆成了两段（已知局限 / 已解决），
+     * 这条测试也跟着改成断言**拆分后的结构**——它比原来更强：
+     * 原来只要求「已闭合的不出现在未处理里」，现在还要求
+     * 「它出现在属于它的那一段里」。
+     */
+    for (const tension of chain.closedTensions) {
+      await expect(
+        rail.locator(`.rs-rail__row[data-tension-id="${tension.id}"]`),
+        `${tension.id} 已处置，不该出现在未处理段`,
+      ).toHaveCount(0)
     }
-    await expect(rail).toContainText(`已闭合 ${chain.closedTensions.length} 项`)
+
+    for (const limitation of chain.limitations) {
+      await expect(
+        rail.locator(`[data-limitation-id="${limitation.tensionId}"]`),
+        `${limitation.tensionId} 被接受为局限，必须出现在「已知局限」段`,
+      ).toHaveCount(1)
+    }
+
+    for (const tension of chain.resolvedTensions) {
+      await expect(rail.locator(`[data-resolved-id="${tension.id}"]`)).toHaveCount(1)
+    }
   })
 
   test("rail 里的 kind 词来自界面词表，不是 domain 的英文标识", async ({ page }) => {
@@ -837,7 +861,7 @@ test.describe("8 · 缺口通道", () => {
 test.describe("9 · 组装层不重新算任何数", () => {
   test("证据的 passageText / locatorLabel 与数据集逐条一致", () => {
     for (const projection of claims()) {
-      const direct = projectClaimEvidence(loadBearingResearch, projection.claim.id, e)
+      const direct = projectClaimEvidence(loadBearingResearch, projection.claim.id, RESEARCH_LABELS)
       expect(projection.evidence).toEqual(direct)
       for (const item of projection.evidence) {
         const passage = loadBearingResearch.passages.find((p) => p.id === item.passageId)!

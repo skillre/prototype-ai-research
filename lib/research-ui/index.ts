@@ -5,5 +5,8 @@
  * 按需求组装、然后交给 `components/research/`。
  *
  * 它**不是**领域层的第二份实现：这里没有任何一个数值是自己算出来的。
+ * `reviewer` 里也没有第二套事实模型——审稿意见指向的都是领域层已有的
+ * Tension 与 AiOutput。
  */
 export * from "./projections"
+export * from "./reviewer"

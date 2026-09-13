@@ -43,18 +43,72 @@ import { useState } from "react"
 import { StructureReveal } from "@/lib/kits/adapters/structure"
 import { Pointer } from "@/lib/kits/adapters/pointer"
 import { messages } from "@/lib/i18n"
+import type { DispositionIssue, TensionResolution } from "@/lib/research"
 import type { ArgumentChain as ArgumentChainData } from "@/lib/research-ui"
 import { ArgumentClaim } from "./argument-claim"
+import { ReviewerNoteCard, type ReviewerDecision } from "./reviewer-note"
 import { GapBody } from "./unsupported-gap"
 import { TensionRail, TensionRailDock } from "./tension-rail"
 
 const t = messages.research.chain
 const tg = messages.research.gap
 
-export function ArgumentChain({ chain }: { chain: ArgumentChainData }) {
+export function ArgumentChain({
+  chain,
+  onSubmitDisposition,
+  onReviewerDecision,
+}: {
+  chain: ArgumentChainData
+  onSubmitDisposition: (
+    tensionId: string,
+    resolution: TensionResolution,
+    reason: string,
+  ) => { ok: true } | { ok: false; issues: DispositionIssue[] }
+  onReviewerDecision: (
+    noteId: string,
+    decision: ReviewerDecision,
+    reason: string,
+  ) => { ok: true } | { ok: false; issues: DispositionIssue[] }
+}) {
   /* 被 rail 指到的论断。它是**界面状态**，不是数据——所以它活在这里，
      不进 domain，也不进 projection。 */
   const [focusedClaimId, setFocusedClaimId] = useState<string | null>(null)
+
+  /* 哪一个缺口的处置面板开着，以及**开在哪个位置**。
+     状态放在这里而不是留在 rail 里，是因为**两个入口**都要打开它：
+     未处理清单里的「处理」，以及审稿意见里的「处理这个缺口」。
+     状态留在 rail 里的话，那两个入口会各开一份互不相知的副本，
+     于是点了审稿意见上的按钮看起来什么都没发生。
+
+     `placement` 是必需的，不是优化：桌面窄带与移动抽屉都会渲染
+     `DispositionPanel`，而其中的一个在给定视口下是 `display:none`。
+     不区分位置就会同时渲染两份表单——而抽屉那一份还会**运行模态副作用**
+     （抢焦点、记录归还目标），即使它根本不可见。一个看不见的模态
+     不该执行模态的副作用。 */
+  const [disposition, setDisposition] = useState<{
+    tensionId: string
+    placement: "rail" | "sheet"
+  } | null>(null)
+
+  const openDisposition = (tensionId: string, from?: "rail" | "sheet") => {
+    /* 没指定来源时按当前视口决定。这次 `matchMedia` **在点击时读**，
+       不在渲染时读——所以它不可能造成 hydration 不一致。
+       （Kits 组件的契约禁止产品自己写 matchMedia 分支，因为那是组件该内建的
+       降级；这里不是降级，是把一次用户动作路由到当前存在的那个容器。） */
+    const placement =
+      from ?? (window.matchMedia("(min-width: 1024px)").matches ? "rail" : "sheet")
+    setDisposition({ tensionId, placement })
+    if (placement === "rail") {
+      /* 从链条上的审稿意见点进来时，视口可能看不到 rail
+         ——先把那一条滚进视野，否则用户会以为按钮坏了。 */
+      document
+        .querySelector(`.rs-rail__row[data-tension-id="${tensionId}"]`)
+        ?.scrollIntoView({ behavior: "smooth", block: "nearest" })
+    }
+  }
+  const closeDisposition = () => setDisposition(null)
+  const railPanelId = disposition?.placement === "rail" ? disposition.tensionId : null
+  const sheetPanelId = disposition?.placement === "sheet" ? disposition.tensionId : null
 
   const focusClaim = (claimId: string) => {
     setFocusedClaimId(claimId)
@@ -139,6 +193,8 @@ export function ArgumentChain({ chain }: { chain: ArgumentChainData }) {
                       claim={claim}
                       suppressedGapClaimId={chain.primaryGap?.claim.claim.id ?? null}
                       onFocusClaim={focusClaim}
+                      onReviewerDecision={onReviewerDecision}
+                      onOpenDisposition={(tensionId) => openDisposition(tensionId)}
                     />
                   ))}
                 </ol>
@@ -149,11 +205,63 @@ export function ArgumentChain({ chain }: { chain: ArgumentChainData }) {
       </div>
 
       {/* 桌面窄带。 */}
-      <TensionRail chain={chain} onGoToClaim={focusClaim} />
+      <TensionRail
+        chain={chain}
+        onGoToClaim={focusClaim}
+        onSubmit={onSubmitDisposition}
+        openPanelId={railPanelId}
+        onOpenPanel={(tensionId) => openDisposition(tensionId, "rail")}
+        onClosePanel={closeDisposition}
+      />
 
       {/* 移动端底部清单。桌面不渲染（CSS 隐藏，且里面没有可聚焦元素被藏起来
           ——关闭态是条件渲染，不是 CSS 藏）。 */}
-      <TensionRailDock chain={chain} onGoToClaim={focusClaim} />
+      <TensionRailDock
+        chain={chain}
+        onGoToClaim={focusClaim}
+        onSubmit={onSubmitDisposition}
+        openPanelId={sheetPanelId}
+        onOpenPanel={(tensionId) => openDisposition(tensionId, "sheet")}
+        onClosePanel={closeDisposition}
+      />
+
+      {/* ---- Class 3 建议 + 历史投影 ----
+          刻意放在**链条之外、窄带之外**的底部：建议按契约没有靶心，
+          把它塞进某条论断下面就是伪造一个靶心。放在这里它仍然是「审稿意见」，
+          只是不属于任何一环。 */}
+      {chain.reviewer.suggestions.length > 0 || chain.reviewer.rejected.length > 0 ? (
+        <section className="rs-review-tail" aria-labelledby="rs-review-tail-heading">
+          <h2 id="rs-review-tail-heading" className="rs-section-label">
+            <span aria-hidden className="rs-section-label__tick" />
+            {messages.research.reviewer.suggestionTitle}
+          </h2>
+
+          {chain.reviewer.suggestions.map((note) => (
+            <ReviewerNoteCard
+              key={note.id}
+              note={note}
+              onDecide={onReviewerDecision}
+              onOpenDisposition={(tensionId) => openDisposition(tensionId)}
+            />
+          ))}
+
+          {chain.reviewer.rejected.length > 0 ? (
+            <>
+              <p className="rs-review-tail__note" data-testid="rejected-outputs-note">
+                {messages.research.reviewer.rejectedNote}
+              </p>
+              {chain.reviewer.rejected.map((note) => (
+                <ReviewerNoteCard
+                  key={note.id}
+                  note={note}
+                  onDecide={onReviewerDecision}
+                  onOpenDisposition={(tensionId) => openDisposition(tensionId)}
+                />
+              ))}
+            </>
+          ) : null}
+        </section>
+      ) : null}
 
       {/* 被指到的论断高亮：用 `data-*` 属性表达，由 CSS 上色。
           用一个空的镜像元素把状态放到 DOM 上，是为了让断言有东西可读——

@@ -16,13 +16,51 @@ import {
   projectClaimVerification,
   unresolvableEvidence,
 } from "../lib/research/projections"
-import { deriveTensions, openTensions, projectTensions, tensionIdFor } from "../lib/research/tensions"
+import {
+  deriveTensions,
+  isTensionStillRaised,
+  openTensions,
+  parseTensionId,
+  projectTensions,
+  tensionIdFor,
+} from "../lib/research/tensions"
 import { traceForSubject } from "../lib/research/trace"
-import { dispositionTension, retractClaim, retireLink } from "../lib/research/operations"
-import { constructAiOutput } from "../lib/research/ai-reviewer"
+import {
+  acceptAiOutput,
+  dispositionTension,
+  rejectAiOutput,
+  retractClaim,
+  retireLink,
+  type DispositionOutcome,
+} from "../lib/research/operations"
+import { constructAiOutput, mayEnterFinding } from "../lib/research/ai-reviewer"
 
 /**
- * 产品不变量 —— 12 条，每条都有一个**负例**。
+ * 拆开处置结果。
+ *
+ * `dispositionTension` 从 Phase E 起返回结果对象而不是裸的 `ResearchData`——
+ * 因为它会**拒绝**非法的处置（不变量 13）。测试里绝大多数调用都是
+ * 「这条处置应该成功」，所以这个助手把成功路径写成一行，
+ * 而失败路径由专门的测试显式断言 `ok: false`。
+ *
+ * 注意它**不是**在吞掉错误：断言失败时它会带着 code 抛出来，
+ * 所以「本该成功的处置被拒绝了」会是一条可读的失败，而不是一个 undefined。
+ */
+function expectDisposed(outcome: DispositionOutcome) {
+  if (!outcome.ok) {
+    throw new Error(`处置被拒绝：${outcome.issues.map((issue) => `${issue.code} ${issue.message}`).join(" / ")}`)
+  }
+  return outcome.data
+}
+
+/**
+ * 产品不变量 —— **15 条**，每条都有一个**负例**。
+ *
+ * | 阶段 | 新增 |
+ * |---|---|
+ * | Phase A | 1–12 |
+ * | Phase E | 13 `resolved.requires-fact-change` · 14 `disposition.writes-trace` |
+ * | Phase F | 15 `ai-reviewer.cannot-mutate` |
  *
  * ## 为什么每个不变量都要有负例
  *
@@ -483,19 +521,36 @@ test.describe("11 · tension.is-derived", () => {
     const derivedBefore = deriveTensions(data).find((t) => t.id === tensionId)
     expect(derivedBefore).toBeDefined()
 
-    const disposed = dispositionTension(data, tensionId, "resolved", {
-      actor: "human",
-      at: "2026-09-10T12:00:00+08:00",
-      reason: "测试用处置。",
-    })
+    /*
+     * ⚠ Phase E 修正了这里的一个**非法取值**，不是放宽了断言。
+     *
+     * 这条测试原本用 `"resolved"`，而这条单来源张力**的事实还在**
+     * （两段引用仍来自同一份报告）。不变量 13 落地后，
+     * `resolved` 在事实未变时会被 `dispositionTension` 拒绝——
+     * 因为「解决」是一句事实断言，不是一句意愿。
+     *
+     * 换用 `accepted-as-limitation` 之后，这条测试**要断言的东西完全没变**：
+     * 处置不改动任何事实字段，投影标记为已处理，而张力**仍然存在**。
+     * 它甚至比原来更贴题——因为只有 accepted-as-limitation 才是
+     * 「处置了，但事实一成不变」的那个出口。
+     */
+    const disposed = expectDisposed(
+      dispositionTension(data, tensionId, "accepted-as-limitation", {
+        actor: "human",
+        at: "2026-09-10T12:00:00+08:00",
+        reason: "测试用处置。",
+      }),
+    )
 
     // 事实字段一个都没变。
     expect(deriveTensions(disposed)).toEqual(deriveTensions(data))
 
     // 投影里它被标记为已处理，但它**仍然存在**。
     const projected = projectTensions(disposed).find((t) => t.id === tensionId)
-    expect(projected?.resolution).toBe("resolved")
+    expect(projected?.resolution).toBe("accepted-as-limitation")
     expect(openTensions(projectTensions(disposed)).some((t) => t.id === tensionId)).toBe(false)
+    // 而且事实依旧成立——「已处理」不等于「已消失」。
+    expect(isTensionStillRaised(disposed, tensionId)).toBe(true)
   })
 
   test("负例：张力是活的——补上证据它就消失，撤掉证据它又回来", () => {
@@ -573,13 +628,272 @@ test.describe("12 · tension.single-source-raised", () => {
     // ResearchData 里根本没有 tensions 字段可以删。
     expect(Object.keys(data)).not.toContain("tensions")
 
-    const disposed = dispositionTension(data, tensionId, "accepted-as-limitation", {
-      actor: "human",
-      at: "2026-09-10T12:00:00+08:00",
-      reason: "接受这个局限。",
-    })
+    const disposed = expectDisposed(
+      dispositionTension(data, tensionId, "accepted-as-limitation", {
+        actor: "human",
+        at: "2026-09-10T12:00:00+08:00",
+        reason: "接受这个局限。",
+      }),
+    )
     // 处置之后重算，张力依然在 —— 事实不会因为人的决定而改变。
     expect(deriveTensions(disposed).some((t) => t.id === tensionId)).toBe(true)
+  })
+})
+
+/* -------------------------------------------------------------------------- */
+/* 13 · resolved.requires-fact-change——Phase E 新增                              */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * 这条不变量保护的是本产品的核心区分：
+ *
+ * ```
+ * resolved                  事实断言 ——「这个洞不存在了」
+ * accepted-as-limitation    判断     ——「洞还在，我带着它交付」
+ * ```
+ *
+ * 如果 `resolved` 可以在事实未变时被写下，那么第二个状态会慢慢变成第一个：
+ * 用户看到一个绿色的「已解决」，而屏幕底下那条论断仍然没有任何证据。
+ * **界面上的自欺和结论里的自欺是同一件事**，而这一屏存在的全部意义就是
+ * 让后者不可能悄悄发生。
+ *
+ * 守卫在 `dispositionTension` 里，所以它是**不可绕过**的——没有第二个
+ * 「只写状态不校验」的底层入口可以调。
+ */
+test.describe("13 · resolved.requires-fact-change", () => {
+  /** 给一条论断补一条支持链接，制造「事实真的变了」。 */
+  function withSupportFor(claimId: string, data: ResearchData): ResearchData {
+    return {
+      ...data,
+      links: [
+        ...data.links,
+        {
+          id: "lnk-new-support",
+          claimId,
+          passageId: P_NAMEPLATE,
+          stance: "supports" as const,
+          createdBy: "human" as const,
+          createdAt: "2026-09-10T12:00:00+08:00",
+          retiredAt: null,
+        },
+      ],
+    }
+  }
+
+  test("正例：事实变了之后，resolved 才被接受", () => {
+    const data = withSupportFor(C_UNSUPPORTED, freshResearch())
+    const tensionId = tensionIdFor("unsupported-claim", C_UNSUPPORTED)
+
+    // 事实已经变了：这条张力不再被推导出来。
+    expect(isTensionStillRaised(data, tensionId)).toBe(false)
+
+    const outcome = dispositionTension(data, tensionId, "resolved", {
+      actor: "human",
+      at: "2026-09-10T12:00:00+08:00",
+      reason: "已补上设备白皮书的一手产能数字。",
+    })
+    expect(outcome.ok).toBe(true)
+  })
+
+  test("负例：无证据支撑的论断仍无证据 → resolve 被拒绝", () => {
+    const data = freshResearch()
+    const tensionId = tensionIdFor("unsupported-claim", C_UNSUPPORTED)
+    expect(isTensionStillRaised(data, tensionId)).toBe(true)
+
+    const outcome = dispositionTension(data, tensionId, "resolved", {
+      actor: "human",
+      at: "2026-09-10T12:00:00+08:00",
+      reason: "我觉得可以了。",
+    })
+
+    expect(outcome.ok).toBe(false)
+    if (outcome.ok) return
+    expect(outcome.issues.map((issue) => issue.code)).toContain(
+      "disposition/resolved-requires-fact-change",
+    )
+  })
+
+  test("被拒绝的处置不写状态、也不写轨迹", () => {
+    const data = freshResearch()
+    const tensionId = tensionIdFor("unsupported-claim", C_UNSUPPORTED)
+    const traceBefore = data.trace.length
+    const dispositionsBefore = data.dispositions.length
+
+    const outcome = dispositionTension(data, tensionId, "resolved", {
+      actor: "human",
+      at: "2026-09-10T12:00:00+08:00",
+      reason: "试试看。",
+    })
+
+    expect(outcome.ok).toBe(false)
+    // `data` 根本没有被改动 —— 失败是纯函数意义上的「什么都没发生」。
+    expect(data.trace).toHaveLength(traceBefore)
+    expect(data.dispositions).toHaveLength(dispositionsBefore)
+  })
+
+  test("事实仍在时，accepted-as-limitation 被接受——这是两个出口的分界", () => {
+    const data = freshResearch()
+    const tensionId = tensionIdFor("unsupported-claim", C_UNSUPPORTED)
+    expect(isTensionStillRaised(data, tensionId)).toBe(true)
+
+    const outcome = dispositionTension(data, tensionId, "accepted-as-limitation", {
+      actor: "human",
+      at: "2026-09-10T12:00:00+08:00",
+      reason: "目前只能取得二手行业报告，无法获得 2025 年后的一手产能数据。",
+    })
+
+    expect(outcome.ok).toBe(true)
+    if (!outcome.ok) return
+
+    // 处置写下去了，但**事实一模一样**。
+    expect(isTensionStillRaised(outcome.data, tensionId)).toBe(true)
+    expect(deriveTensions(outcome.data)).toEqual(deriveTensions(data))
+  })
+
+  test("负例：洞不存在了就不能「接受为局限」——那会凭空造出一条局限", () => {
+    const data = withSupportFor(C_UNSUPPORTED, freshResearch())
+    const tensionId = tensionIdFor("unsupported-claim", C_UNSUPPORTED)
+    expect(isTensionStillRaised(data, tensionId)).toBe(false)
+
+    const outcome = dispositionTension(data, tensionId, "accepted-as-limitation", {
+      actor: "human",
+      at: "2026-09-10T12:00:00+08:00",
+      reason: "接受它。",
+    })
+
+    expect(outcome.ok).toBe(false)
+    if (outcome.ok) return
+    expect(outcome.issues.map((issue) => issue.code)).toContain(
+      "disposition/accepted-without-raised-tension",
+    )
+  })
+
+  test("负例：理由为空一律被拒绝——两种出口都不例外", () => {
+    const data = withSupportFor(C_UNSUPPORTED, freshResearch())
+    const resolvedId = tensionIdFor("unsupported-claim", C_UNSUPPORTED)
+    const limitationId = tensionIdFor("single-source", C_SINGLE_SOURCE)
+
+    const resolveOutcome = dispositionTension(data, resolvedId, "resolved", {
+      actor: "human",
+      at: "2026-09-10T12:00:00+08:00",
+      reason: "   ",
+    })
+    expect(resolveOutcome.ok).toBe(false)
+    if (!resolveOutcome.ok) {
+      expect(resolveOutcome.issues.map((issue) => issue.code)).toContain("disposition/missing-reason")
+    }
+
+    const limitOutcome = dispositionTension(data, limitationId, "accepted-as-limitation", {
+      actor: "human",
+      at: "2026-09-10T12:00:00+08:00",
+      reason: "",
+    })
+    expect(limitOutcome.ok).toBe(false)
+    if (!limitOutcome.ok) {
+      expect(limitOutcome.issues.map((issue) => issue.code)).toContain("disposition/missing-reason")
+    }
+  })
+
+  test("负例：指向不存在论断的张力 id 被拒绝，且理由与「洞被填上」不同", () => {
+    /*
+     * 这两件事必须分开，因为 `isTensionStillRaised` 对它们都返回 false，
+     * 而正确处置完全相反：
+     *   「洞被填上了」 → resolved 合法
+     *   「id 不存在」   → 必须拒绝
+     * 只看 stillRaised 无法区分，所以 id 必须是可逆的（parseTensionId）。
+     */
+    const data = freshResearch()
+
+    const outcome = dispositionTension(data, "unsupported-claim::clm-does-not-exist", "resolved", {
+      actor: "human",
+      at: "2026-09-10T12:00:00+08:00",
+      reason: "随便写的。",
+    })
+
+    expect(outcome.ok).toBe(false)
+    if (outcome.ok) return
+    expect(outcome.issues.map((issue) => issue.code)).toEqual(["disposition/unknown-tension"])
+
+    // 对照：id 格式本身坏掉时也是同一条 code，而不是抛异常。
+    const malformed = dispositionTension(data, "not-a-tension-id", "resolved", {
+      actor: "human",
+      at: "2026-09-10T12:00:00+08:00",
+      reason: "随便写的。",
+    })
+    expect(malformed.ok).toBe(false)
+  })
+
+  test("tensionIdFor / parseTensionId 互为逆运算", () => {
+    for (const kind of [
+      "unsupported-claim",
+      "contradictory-evidence",
+      "single-source",
+      "stale-source",
+      "low-quality-evidence",
+    ] as const) {
+      const parsed = parseTensionId(tensionIdFor(kind, C_CONTESTED))
+      expect(parsed).toEqual({ kind, claimId: C_CONTESTED })
+    }
+
+    // 负例：这些都不是合法的张力 id。
+    expect(parseTensionId("unsupported-claim")).toBeNull()
+    expect(parseTensionId("::clm-x")).toBeNull()
+    expect(parseTensionId("unsupported-claim::")).toBeNull()
+    expect(parseTensionId("not-a-kind::clm-x")).toBeNull()
+  })
+})
+
+/* -------------------------------------------------------------------------- */
+/* 14 · disposition.writes-trace                                                */
+/* -------------------------------------------------------------------------- */
+
+test.describe("14 · 处置与轨迹原子同写", () => {
+  test("成功的处置一定留下一条轨迹，且指向那条张力", () => {
+    const data = freshResearch()
+    const tensionId = tensionIdFor("single-source", C_SINGLE_SOURCE)
+    const before = traceForSubject(data, "tension", tensionId).length
+
+    const outcome = dispositionTension(data, tensionId, "accepted-as-limitation", {
+      actor: "human",
+      at: "2026-09-10T12:00:00+08:00",
+      reason: "短期内不再找第二来源。",
+    })
+    expect(outcome.ok).toBe(true)
+    if (!outcome.ok) return
+
+    const entries = traceForSubject(outcome.data, "tension", tensionId)
+    expect(entries).toHaveLength(before + 1)
+    const latest = entries.at(-1)!
+    expect(latest.kind).toBe("tension-dispositioned")
+    expect(latest.actor).toBe("human")
+    // 轨迹里必须同时保留出口与理由——只记「已处理」在半年后读不出任何东西。
+    expect(latest.reason).toContain("accepted-as-limitation")
+    expect(latest.reason).toContain("短期内不再找第二来源")
+  })
+
+  test("重复处置保留全部历史，投影取最后一次", () => {
+    const data = freshResearch()
+    const tensionId = tensionIdFor("single-source", C_SINGLE_SOURCE)
+
+    const first = expectDisposed(
+      dispositionTension(data, tensionId, "accepted-as-limitation", {
+        actor: "human",
+        at: "2026-09-10T12:00:00+08:00",
+        reason: "第一次：接受。",
+      }),
+    )
+    const second = expectDisposed(
+      dispositionTension(first, tensionId, "accepted-as-limitation", {
+        actor: "human",
+        at: "2026-09-11T12:00:00+08:00",
+        reason: "第二次：改一下理由。",
+      }),
+    )
+
+    expect(second.dispositions.length).toBe(first.dispositions.length + 1)
+    expect(projectTensions(second).find((t) => t.id === tensionId)?.dispositionReason).toBe(
+      "第二次：改一下理由。",
+    )
   })
 })
 
@@ -629,5 +943,132 @@ test.describe("夹具覆盖度", () => {
     const retracted = historicalClaims(data).filter((c) => c.status === "retracted")
     expect(retracted).toHaveLength(1)
     expect(traceForSubject(data, "claim", retracted[0].id).length).toBeGreaterThan(0)
+  })
+})
+
+/* -------------------------------------------------------------------------- */
+/* 15 · ai-reviewer.cannot-mutate——Phase F 新增                                  */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * AI Reviewer 只能**说话**，不能改任何业务事实。
+ *
+ * 这条不变量不是靠约定守的，而是靠 API 形状：`acceptAiOutput` /
+ * `rejectAiOutput` 的签名里根本没有能改那些字段的参数。所以它实际上是
+ * 「有人加了参数之后测试会失败」的守卫——那正是它存在的意义。
+ *
+ * 半年后如果有人想给「采纳」接上「顺便把这条张力也标记为已处理」，
+ * 这条测试会在那一刻失败，而不是在产品开始撒谎之后才被发现。
+ */
+test.describe("15 · AI 不得改动业务事实", () => {
+  /** 除 trace 外逐字段全等。 */
+  function withoutTrace(data: ResearchData) {
+    const { trace: _trace, ...rest } = data
+    void _trace
+    return rest
+  }
+
+  test("采纳不改变任何字段（除 trace）", () => {
+    const data = freshResearch()
+    const outcome = acceptAiOutput(data, "ai-critique-unsupported", {
+      actor: "human",
+      at: "2026-09-12T10:00:00+08:00",
+      reason: "这条批评成立，需要补一手材料。",
+    })
+    expect(outcome.ok).toBe(true)
+    if (!outcome.ok) return
+
+    expect(withoutTrace(outcome.data)).toEqual(withoutTrace(data))
+    // 而且它**没有**处置张力 —— 采纳不是处置。
+    expect(outcome.data.dispositions).toEqual(data.dispositions)
+    expect(deriveTensions(outcome.data)).toEqual(deriveTensions(data))
+    // 输出本身也没被改。
+    expect(outcome.data.aiOutputs).toEqual(data.aiOutputs)
+  })
+
+  test("驳回同样不改变任何字段，且**不删除输出**", () => {
+    const data = freshResearch()
+    const before = data.aiOutputs.length
+    const outcome = rejectAiOutput(data, "ai-critique-unsupported", {
+      actor: "human",
+      at: "2026-09-12T10:00:00+08:00",
+      reason: "这条批评的靶心不对。",
+    })
+    expect(outcome.ok).toBe(true)
+    if (!outcome.ok) return
+
+    expect(withoutTrace(outcome.data)).toEqual(withoutTrace(data))
+    // 没有删除 —— 这条是 deletion-preserves-history 在 AI 输出上的同一条规则。
+    expect(outcome.data.aiOutputs).toHaveLength(before)
+    expect(outcome.data.aiOutputs.map((o) => o.id)).toContain("ai-critique-unsupported")
+  })
+
+  test("采纳与驳回各自留下一条轨迹，且都指向那条输出", () => {
+    const data = freshResearch()
+    const accepted = acceptAiOutput(data, "ai-critique-unsupported", {
+      actor: "human",
+      at: "2026-09-12T10:00:00+08:00",
+      reason: "成立。",
+    })
+    expect(accepted.ok).toBe(true)
+    if (!accepted.ok) return
+
+    const entries = traceForSubject(accepted.data, "ai-output", "ai-critique-unsupported")
+    expect(entries.at(-1)?.kind).toBe("ai-output-accepted")
+    expect(entries.at(-1)?.reason).toBe("成立。")
+  })
+
+  test("负例：同一条输出不能被既驳回又采纳（历史里不能留两条互相否认的记录）", () => {
+    const data = freshResearch()
+    const accepted = acceptAiOutput(data, "ai-critique-unsupported", {
+      actor: "human",
+      at: "2026-09-12T10:00:00+08:00",
+      reason: "成立。",
+    })
+    expect(accepted.ok).toBe(true)
+    if (!accepted.ok) return
+
+    const flip = rejectAiOutput(accepted.data, "ai-critique-unsupported", {
+      actor: "human",
+      at: "2026-09-12T11:00:00+08:00",
+      reason: "反悔了。",
+    })
+    expect(flip.ok).toBe(false)
+    if (flip.ok) return
+    expect(flip.issues.map((issue) => issue.code)).toContain("ai/already-accepted")
+  })
+
+  test("负例：理由为空或输出不存在时被拒绝", () => {
+    const data = freshResearch()
+
+    const noReason = acceptAiOutput(data, "ai-critique-unsupported", {
+      actor: "human",
+      at: "2026-09-12T10:00:00+08:00",
+      reason: "  ",
+    })
+    expect(noReason.ok).toBe(false)
+    if (!noReason.ok) {
+      expect(noReason.issues.map((issue) => issue.code)).toContain("ai/missing-reason")
+    }
+
+    const unknown = rejectAiOutput(data, "ai-does-not-exist", {
+      actor: "human",
+      at: "2026-09-12T10:00:00+08:00",
+      reason: "随便。",
+    })
+    expect(unknown.ok).toBe(false)
+    if (!unknown.ok) {
+      expect(unknown.issues.map((issue) => issue.code)).toContain("ai/unknown-output")
+    }
+  })
+
+  test("建议永远不得进入 Finding —— 这是三类输出里唯一不可协商的一条", () => {
+    const data = freshResearch()
+    const suggestion = data.aiOutputs.find((output) => output.kind === "suggestion")!
+    expect(mayEnterFinding(suggestion)).toBe(false)
+    for (const output of data.aiOutputs) {
+      if (output.kind === "suggestion") expect(mayEnterFinding(output)).toBe(false)
+      else expect(mayEnterFinding(output)).toBe(true)
+    }
   })
 })

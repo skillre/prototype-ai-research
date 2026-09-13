@@ -33,8 +33,10 @@ import {
   getSourceForPassage,
 } from "./projections"
 import type {
+  Actor,
   DerivedTension,
   Id,
+  IsoTimestamp,
   ResearchData,
   Tension,
   TensionDisposition,
@@ -52,6 +54,54 @@ import type {
  */
 export function tensionIdFor(kind: TensionKind, claimId: Id): string {
   return `${kind}::${claimId}`
+}
+
+/** 全部 kind。与 `TensionKind` 的一致性由下面的编译期断言保证。 */
+const ALL_TENSION_KINDS = [
+  "unsupported-claim",
+  "contradictory-evidence",
+  "single-source",
+  "stale-source",
+  "low-quality-evidence",
+] as const
+
+/** 若 `TensionKind` 多了一个成员而上面的数组没跟上，这一行会编译失败。 */
+type MissingTensionKind = Exclude<TensionKind, (typeof ALL_TENSION_KINDS)[number]>
+const _allTensionKindsCovered: MissingTensionKind extends never ? true : never = true
+void _allTensionKindsCovered
+
+/**
+ * `tensionIdFor` 的逆运算。
+ *
+ * ## 为什么需要它（Phase E 暴露出来的一个真实缺口）
+ *
+ * 「张力还在吗」这个问题有一个**致命歧义**：
+ *
+ * ```
+ * isTensionStillRaised(data, id) === false
+ *   可能意味着 (a) 这个洞被事实填上了     ← 合法
+ *   也可能意味着 (b) 这个 id 根本不存在   ← 打错了字
+ * ```
+ *
+ * 两者在处置时**后果完全相反**：前者允许 `resolved`，后者必须被拒绝
+ * （否则一次手误就会在历史里留下一条谁也对不上的处置记录）。
+ * 只看 `isTensionStillRaised` 无法区分，所以必须能把 id 拆回 `(kind, claimId)`，
+ * 再问一句「这条论断存在吗」。
+ *
+ * 这也是为什么 id 的格式不是实现细节：`${kind}::${claimId}` 是**可逆的**，
+ * 于是「这条处置说的是哪条论断的哪个问题」永远可以被验证，
+ * 而不是只能相信调用方传对了一个字符串。
+ */
+export function parseTensionId(id: Id): { kind: TensionKind; claimId: Id } | null {
+  const separator = id.indexOf("::")
+  if (separator <= 0) return null
+
+  const kind = id.slice(0, separator)
+  const claimId = id.slice(separator + 2)
+  if (claimId.length === 0) return null
+  if (!(ALL_TENSION_KINDS as readonly string[]).includes(kind)) return null
+
+  return { kind: kind as TensionKind, claimId }
 }
 
 /** 严重度由 kind 决定，不是人填的。 */
@@ -193,7 +243,88 @@ export function closedTensions(tensions: Tension[]): Tension[] {
  *
  * 注意「重算后张力还在，但处置说已解决」是**正常且期望**的状态：
  * 研究者判断这个洞可以接受，事实并没有改变。
+ *
+ * ⚠ 但它有一个歧义：返回 `false` 既可能是「事实填上了」，也可能是
+ * 「这个 id 根本不存在」。需要区分时配合 `parseTensionId` 用——见
+ * `dispositionTension` 的处理：先证明论断存在，再看事实。
  */
 export function isTensionStillRaised(data: ResearchData, tensionId: Id): boolean {
   return deriveTensions(data).some((tension) => tension.id === tensionId)
+}
+
+/* -------------------------------------------------------------------------- */
+/* 已知局限投影                                                                  */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * 一条**被接受的局限**。
+ *
+ * 这是 `accepted-as-limitation` 的投影，不是一种新的实体：每个字段都能追到
+ * 一条已存的处置记录，或一条可重算的张力事实。
+ */
+export interface KnownLimitation {
+  tensionId: Id
+  kind: TensionKind
+  severity: TensionSeverity
+  /** 这条局限挂在哪条论断上。**永远可追溯**——局限不是一句漂浮的话。 */
+  claimId: Id
+  /** 人写下的原文。交付物里要用的就是这一句。 */
+  reason: string
+  acceptedAt: IsoTimestamp
+  actor: Actor
+  /**
+   * 这条局限对应的**事实是否仍然存在**。
+   *
+   * `true` 是常态，也是 `accepted-as-limitation` 的定义：
+   * 「洞还在，我决定带着它交付」。如果它是 `false`，说明事实后来变了——
+   * 那条洞已经被填上，这条局限记录就变成了一条**历史**记录而不是现状。
+   * 界面必须能区分这两者，否则「接受」会慢慢看起来像「解决」。
+   */
+  stillRaised: boolean
+}
+
+/**
+ * 已知局限投影 —— `accepted-as-limitation` 处置的读取面。
+ *
+ * ## 它为什么必须存在
+ *
+ * 「接受为已知局限」如果没有一个**独立的投影**，它在界面上就只剩一个
+ * 已处理标记——而那个标记和「已解决」用的是同一个。这正是 `types.ts` 里
+ * 那条立场要防的事：一个有边界的结论比一个假装完整的结论可信得多，
+ * 但前提是**边界本身是可读的**。
+ *
+ * ## 为什么它不属于 Finding
+ *
+ * `Finding.knownLimitations` 是一组字符串，是**交付物**；
+ * 这里是一组带 id 的记录，是**可追溯的现状**。前者是后者的下游产物，
+ * 而且必须由人决定怎么措辞——不是把 reason 数组直接倒进去。
+ * 本阶段只建立投影，不做 Finding 页面。
+ *
+ * ## 全部是派生的
+ *
+ * 没有新的存储。来源只有两处：`data.dispositions`（人的输入）与
+ * `deriveTensions(data)`（事实）。所以它不可能与事实漂移。
+ */
+export function projectKnownLimitations(data: ResearchData): KnownLimitation[] {
+  const raised = new Map(deriveTensions(data).map((tension) => [tension.id, tension]))
+
+  return data.dispositions
+    .filter((disposition) => disposition.resolution === "accepted-as-limitation")
+    .map((disposition) => {
+      const tension = raised.get(disposition.tensionId)
+      /* 张力重算不出来时，仍然用 id 拆出 claimId —— 这条记录**必须仍然可追溯**，
+         哪怕它指向的事实已经消失。丢字段会让历史记录变成一句无法核对的话。 */
+      const parsed = parseTensionId(disposition.tensionId)
+      return {
+        tensionId: disposition.tensionId,
+        kind: tension?.kind ?? parsed?.kind ?? "unsupported-claim",
+        severity: tension?.severity ?? "notable",
+        claimId: tension?.subject.claimId ?? parsed?.claimId ?? "",
+        reason: disposition.reason,
+        acceptedAt: disposition.at,
+        actor: disposition.actor,
+        stillRaised: tension !== undefined,
+      } satisfies KnownLimitation
+    })
+    .sort((a, b) => a.tensionId.localeCompare(b.tensionId))
 }

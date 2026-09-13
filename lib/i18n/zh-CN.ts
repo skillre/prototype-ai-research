@@ -694,6 +694,19 @@ export const zhCN = {
       empty: "没有未处理的缺口。",
       close: "收起清单",
       open: "展开清单",
+      /**
+       * 三个处置状态各自的名字。
+       *
+       * ⚠ 这三个词**不可以**被合成一个「已处理」——本阶段存在的全部理由
+       * 就是让用户看清「解决它」和「接受它」不是一回事。
+       */
+      stateOpen: "未处理",
+      stateResolved: "已解决",
+      stateAccepted: "已接受为已知局限",
+      limitationsLabel: "已知局限",
+      limitationsCount: (n: number) => `${n} 项`,
+      resolvedLabel: "已解决",
+      resolvedCount: (n: number) => `${n} 项`,
       /** kind → 界面词。与 domain 的 `TensionKind` 一一对应。 */
       kind: {
         "unsupported-claim": "无证据支撑",
@@ -708,6 +721,118 @@ export const zhCN = {
         notable: "注意",
       },
       subjectClaim: (n: number) => `论断 ${n}`,
+    },
+
+    /** 处置交互（Phase E）。 */
+    disposition: {
+      /** 打开处置面板的按钮。 */
+      action: "处理",
+      panelTitle: "处理这个缺口",
+      cancel: "取消",
+      /**
+       * 两个出口，两种措辞。
+       *
+       * 「标记为已解决」在事实未变时**会被领域层拒绝**——这不是缺陷，
+       * 而是这个产品最重要的那条规则（不变量 13）。界面照常提供它，
+       * 因为用户需要看到那个拒绝的理由，而不是看不到这个选项。
+       */
+      resolveAction: "标记为已解决",
+      resolveHint: "事实断言：这个洞不再存在了。",
+      acceptAction: "接受为已知局限",
+      acceptHint: "判断：洞还在，但我决定带着它交付。",
+      /** 面板里那句解释——用户理解这两个出口的唯一途径。 */
+      distinction:
+        "「已解决」要求事实真的变了：先补上材料，让这条缺口不再被推导出来。「接受为已知局限」不要求事实改变——它把这条边界写下来，交付物里会带上它。",
+      reasonLabel: "理由",
+      reasonPlaceholderResolve: "补了什么材料，让这条缺口不再成立",
+      reasonPlaceholderAccept: "为什么决定带着这个缺口交付（会写进交付物）",
+      submitResolve: "确认已解决",
+      submitAccept: "接受为局限",
+      /** 被守卫拒绝时显示在面板里的一行标题。 */
+      rejectedTitle: "这条处置被拒绝了",
+      acceptedAt: (date: string) => `${date} 接受`,
+      traceabilityHint: "仍然可追溯回对应的论断与张力",
+      /** 事实是否仍然存在。 */
+      stillRaised: "对应的缺口仍然存在",
+      noLongerRaised: "对应的缺口已不存在（历史记录）",
+    },
+
+    /** AI Reviewer（Phase F）。 */
+    reviewer: {
+      /** 审稿意见区的标题。刻意不叫「AI 助手」「对话」。 */
+      label: "审稿意见",
+      /** 角色说明。用户第一眼就该知道这不是聊天。 */
+      roleNote: "审稿人只指出问题：它不回答问题，也不改动任何记录。",
+      /** 三类输出各自的标签。三类必须一眼可分。 */
+      classLabel: {
+        factual: "AI 抽取的事实",
+        critique: "AI 批评",
+        suggestion: "AI 建议",
+      },
+      /** 来源标记：人写过的批评 vs 机械检查。 */
+      provenanceAuthored: "已记录的意见",
+      provenanceDerived: "自动检查",
+      /**
+       * 自动检查得出的批评指向哪一类问题。
+       *
+       * ⚠ 刻意**不显示**张力的原始 id（`unsupported-claim::clm-x`）：
+       * 那是代码标识符，不是界面文案——它会让这一行在本地化审计里
+       * 变成一处「未翻译的英文」，而且用户读到的是一串术语而不是一句话。
+       * 追溯性由 DOM 上的 `data-tension-id` 承担，机器读得到，人不需要读。
+       */
+      tensionRef: (kind: string) => `对应未处理：${kind}`,
+      /**
+       * 自动检查的批评**没有**「驳回 / 接受」。
+       *
+       * 它不是一条 AI 输出——没有一条被存下来的对象可以驳回。
+       * 它是这条张力的机械复述，所以唯一的出口是去处置那条张力本身。
+       * 给它加一对驳回按钮会伪造一个不存在的对象。
+       */
+      derivedHint: "这条意见由自动检查得出，不是一个 AI 输出。要处理它，请处置同一条未处理缺口。",
+      derivedAction: "处理这个缺口",
+      /** 人对一条意见的三种状态。 */
+      statePending: "待处理",
+      stateAcknowledged: "已接受为待处理",
+      stateRejected: "已驳回",
+      acknowledge: "接受为待处理",
+      reject: "驳回",
+      acknowledgeHint: "表示这条批评成立、需要处理。它**不会**改变任何事实。",
+      rejectHint: "表示这条批评不成立。输出不会被删除，它会进入历史投影。",
+      reasonLabel: "理由",
+      reasonPlaceholderReject: "为什么这条批评不成立",
+      reasonPlaceholderAcknowledge: "为什么它值得处理",
+      submitReject: "确认驳回",
+      submitAcknowledge: "确认接受",
+      cancel: "取消",
+      rejectedTitle: "已驳回",
+      rejectedNote: "被驳回的输出没有被删除——它们留在历史投影里，随时可查。",
+      suggestionTitle: "建议",
+      /** §18：建议必须自己说清它进不了交付物。 */
+      suggestionNote: "建议没有出处，因此不会进入交付物。它可以被采纳为下一步行动。",
+      openCount: (n: number) => `${n} 条待处理`,
+      none: "目前没有审稿意见。",
+      /** 由张力种类生成的批评。 */
+      critiqueText: {
+        "unsupported-claim": "这条论断没有任何来源支撑。",
+        "contradictory-evidence": "这条论断存在反驳证据，但结论里没有说明它是怎么被处理的。",
+        "single-source": "这条论断的全部引用来自同一份来源。多处引用不等于多个来源。",
+        "stale-source": "这条论断引用的来源已无法核对，那处引用不能算数。",
+        "low-quality-evidence": "支撑这条论断的材料全部是三手转述，没有可核对的一手依据。",
+      },
+      critiqueNext: {
+        "unsupported-claim": "补一份可核对的一手材料；拿不到就把它接受为已知局限。",
+        "contradictory-evidence": "在结论里写明这条反驳以及它为什么不推翻论断，或者收窄论断的适用范围。",
+        "single-source": "再找一份独立来源；找不到就在交付物里写明它只有一处可查。",
+        "stale-source": "找到该来源的存档或新版本，否则停用这条引用。",
+        "low-quality-evidence": "回到原始材料核对；只拿得到转述的话，把它当作线索而不是证据。",
+      },
+      /** 读法检查——不是张力，所以单列。 */
+      readingTrap: {
+        text: "「没找到反例」不等于「已验证」。这条论断有支持、也确实没有反驳，但它仍然没有通过验证。",
+        next: "看它下面的依据状态：真正拦住它的是那一项，不是缺少反驳。",
+      },
+      acknowledgedSuffix: "已接受为待处理",
+      rejectedPrefix: "已驳回：",
     },
 
     /** 证据片段。 */

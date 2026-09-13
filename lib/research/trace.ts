@@ -68,7 +68,31 @@ export function rejectedAiOutputIds(data: ResearchData): Set<Id> {
   )
 }
 
-/** 仍然有效的 AI 输出：那些没有被驳回的。 */
+/**
+ * 被**采纳**的 AI 输出 id（Phase E+F 新增）。
+ *
+ * 与 `rejectedAiOutputIds` 对称，但语义完全不同，所以是两个函数而不是一个
+ * `aiOutputState(id)` 的开关：
+ *
+ *   - 驳回 = 人认为这条批评不成立 → 它进入历史投影，不再出现在审稿意见里
+ *   - 采纳 = 人认为这条批评**成立且值得处理** → 它**仍然留在**审稿意见里，
+ *            只是被标记为「已接受为待处理」
+ *
+ * 采纳**不是一个结束状态**。它不处置张力、不改任何事实——被采纳的批评要等到
+ * 人真的去补材料、或者明确接受这个局限，才算处理完。
+ * （见 `TensionResolution`：`resolved` 需要事实改变，`accepted-as-limitation`
+ * 需要人做决定。采纳 AI 的批评两件都不是。）
+ *
+ * 这一点让「采纳」与「处置」不可能被混为一谈：前者是人的一句「我看到了」，
+ * 后者是对事实或边界的判断。
+ */
+export function acceptedAiOutputIds(data: ResearchData): Set<Id> {
+  return new Set(
+    data.trace.filter((entry) => entry.kind === "ai-output-accepted").map((entry) => entry.subject.id),
+  )
+}
+
+/** 仍然有效的 AI 输出：那些没有被驳回的。采纳与否不影响它是否有效。 */
 export function activeAiOutputs(data: ResearchData) {
   const rejected = rejectedAiOutputIds(data)
   return data.aiOutputs.filter((output) => !rejected.has(output.id))

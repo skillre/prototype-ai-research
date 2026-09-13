@@ -22,6 +22,16 @@
  * 按**契约顺序**切），其余折进「还有 N 条」。切法不做任何 stance 特判——
  * 契约说反驳最先，那折叠时就必须先保住它。
  *
+ * ## 它上面挂着两种「人已经做过判断」的痕迹（Phase E+F）
+ *
+ * ```
+ * claim.limitations      人接受了的边界（带理由与张力 id）
+ * claim.reviewerNotes    AI 对这个论断说的话（批评 / 抽取的事实）
+ * ```
+ *
+ * 两者都**不改变**论断本身。论断文本、依据状态、证据强度一个都不动——
+ * 人接受局限不会让依据变强，AI 说它有问题也不会让它变弱。
+ *
  * ## 展开态只有一份
  *
  * `openLinkId` 由本组件持有，子组件是受控的。这样「同时只展开一条原文」
@@ -34,6 +44,7 @@ import { StructureReveal } from "@/lib/kits/adapters/structure"
 import { messages } from "@/lib/i18n"
 import { evidenceWindow, type ClaimProjection } from "@/lib/research-ui"
 import { EvidencePassage } from "./evidence-passage"
+import { ReviewerNoteCard, type ReviewerDecision } from "./reviewer-note"
 import { UnsupportedGap } from "./unsupported-gap"
 
 const t = messages.research.chain
@@ -60,6 +71,8 @@ export function ArgumentClaim({
   claim,
   suppressedGapClaimId,
   onFocusClaim,
+  onReviewerDecision,
+  onOpenDisposition,
 }: {
   claim: ClaimProjection
   /**
@@ -68,6 +81,12 @@ export function ArgumentClaim({
    * 「首屏讲过一条」不等于「其余都不必讲」。 */
   suppressedGapClaimId: string | null
   onFocusClaim: (claimId: string) => void
+  onReviewerDecision: (
+    noteId: string,
+    decision: ReviewerDecision,
+    reason: string,
+  ) => { ok: true } | { ok: false; issues: import("@/lib/research").DispositionIssue[] }
+  onOpenDisposition: (tensionId: string) => void
 }) {
   const [expanded, setExpanded] = useState(false)
   const [openLinkId, setOpenLinkId] = useState<string | null>(null)
@@ -141,6 +160,33 @@ export function ArgumentClaim({
           </p>
         ) : null}
 
+        {/* 人已经**接受**的局限。它与上面的「待处理标记」长得不一样，位置也不同：
+            标记说的是「这里还有事」，局限说的是「这里有一个我决定带着交付的边界」。
+            两者共用一种样式的话，「接受」会慢慢看起来像「还没处理」。 */}
+        {claim.limitations.length > 0 ? (
+          <ul className="rs-claim__limitations">
+            {claim.limitations.map((limitation) => (
+              <li
+                key={limitation.tensionId}
+                className="rs-claim__limitation"
+                data-limitation-id={limitation.tensionId}
+              >
+                <span className="rs-claim__limitation-label">
+                  <span aria-hidden className="rs-rail__limitation-mark" />
+                  {tk.stateAccepted}
+                </span>
+                <span className="rs-claim__limitation-reason">{limitation.reason}</span>
+                {/* 追溯性：机器读 `data-limitation-id`（就是张力 id，在 li 上），
+                    人读这一行的类别词。原始 id 不作为可见文案——它是代码标识符，
+                    会同时污染本地化审计和读者的注意力。 */}
+                <span className="rs-claim__limitation-meta">
+                  <span>{tk.kind[limitation.kind]}</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+
         {claim.evidence.length > 0 ? (
           /* 签名组件 1/2：整条论断按阅读顺序落定。
              step="one" 而不是 "group"——逐条揭示会让链条变成「一行一行蹦出来」，
@@ -167,6 +213,22 @@ export function ArgumentClaim({
           >
             {expanded ? te.less : te.more(hiddenCount)}
           </button>
+        ) : null}
+
+        {/* 审稿意见：**旁注**，附着在这条论断上。
+            位置刻意在证据之后——它是评论，不是内容。放在论断标题旁边会
+            让 AI 抢到读者的第一眼，而第一眼必须留给缺口。 */}
+        {claim.reviewerNotes.length > 0 ? (
+          <div className="rs-claim__notes" data-notes-for={claim.claim.id}>
+            {claim.reviewerNotes.map((note) => (
+              <ReviewerNoteCard
+                key={note.id}
+                note={note}
+                onDecide={onReviewerDecision}
+                onOpenDisposition={onOpenDisposition}
+              />
+            ))}
+          </div>
         ) : null}
       </div>
     </li>

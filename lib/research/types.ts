@@ -129,6 +129,18 @@ export type TensionSeverity = "blocking" | "notable"
  *
  * `resolved` 把洞填上；`accepted-as-limitation` 承认这个洞存在并写进交付物。
  * 后者不是失败——一个有边界的结论比一个假装完整的结论可信得多。
+ *
+ * ## ⚠ 两者不可互换，而且一个可以被拒绝（Phase E 新增）
+ *
+ * `resolved` 是一个**事实断言**：它说「这个洞不存在了」。
+ * 所以它只有在**事实真的变了**的时候才成立——`dispositionTension` 会在
+ * `isTensionStillRaised()` 仍为 true 时**拒绝**它（不变量 13）。
+ *
+ * `accepted-as-limitation` 是一个**判断**：它说「洞还在，但我决定带着它交付」。
+ * 它任何时候都成立，前提是洞真的还在。
+ *
+ * 把这两个状态合并显示成「已处理」，会让第二个悄悄变成第一个——
+ * 而那正是这一整个产品在防的事。
  */
 export type TensionResolution = "resolved" | "accepted-as-limitation"
 
@@ -353,6 +365,18 @@ export type TraceKind =
   | "link-retired"
   | "tension-dispositioned"
   | "ai-output-rejected"
+  /**
+   * 人**采纳**了一条 AI 输出（Phase E+F 新增）。
+   *
+   * 「采纳」是一条真实的产品动作，所以它必须有自己的事件类型，而不是被
+   * 塞进 `ai-output-rejected` 的反面（例如一个 `ai-output-rejected: false`
+   * 的标志）。刻意没有写通用的 `ai-output-updated`：一个什么都记的事件，
+   * 等于什么都没记——这是本文件顶部那条立场。
+   *
+   * ⚠ 采纳**不改变任何业务事实**：不断言、不改 stance、不处置张力。
+   * 它只记「人看过这条批评，并认为它值得处理」。最终决定仍然是人做。
+   */
+  | "ai-output-accepted"
 
 /**
  * 一条轨迹记录。**事件，不是实体。**
