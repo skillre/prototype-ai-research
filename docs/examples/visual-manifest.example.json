@@ -1,0 +1,11 @@
+{
+  "$schema": "../../lib/visual-manifest.schema.json",
+  "productType": "ai-finance-console",
+  "firstVisual": "深色空间里从左上打下来的环境光，标题浮在光里，下方一条发光曲线",
+  "stylePack": "cinematic",
+  "signatureComponents": ["interactive-hero", "data-cursor"],
+  "effects": ["ambient-glow"],
+  "motionDirection": "atmospheric",
+  "density": "medium",
+  "avoid": ["generic-ai-dashboard", "card-everywhere", "animation-everywhere"]
+}

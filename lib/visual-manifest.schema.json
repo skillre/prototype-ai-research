@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://prototype-factory.local/schemas/visual-manifest.schema.json",
+  "title": "Visual Manifest",
+  "description": "The Factory's Art Direction contract. Shape only — the legal VALUES for stylePack / signatureComponents / effects come from the Prototype Kits registry and are checked at verification time, never enumerated here. Enumerating them would make Factory Core aware of specific Style Packs (which v1.1 exists to prevent) and would go stale the moment Kits ships a new asset.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "productType",
+    "firstVisual",
+    "stylePack",
+    "signatureComponents",
+    "effects",
+    "motionDirection",
+    "density",
+    "avoid"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Optional schema pointer, for editors only."
+    },
+    "productType": {
+      "type": "string",
+      "minLength": 1,
+      "description": "kebab-case product type, e.g. `ai-finance-console`. Drives the pack recommendation."
+    },
+    "firstVisual": {
+      "type": "string",
+      "minLength": 12,
+      "description": "One sentence: what does the user see FIRST? Impression words (`现代简洁`, `modern, clean`) are rejected by the validator — they answer nothing.",
+      "$comment": "The non-vacuity rule is enforced in lib/visual-manifest.ts because it is a language judgement a JSON Schema cannot express."
+    },
+    "stylePack": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Style Pack id. Must resolve to an `approved` asset of type `style` in the Kits registry."
+    },
+    "signatureComponents": {
+      "type": "array",
+      "description": "Signature Component ids. Each must resolve to an `approved` asset of type `component`. Count constraints are owned by the Kits visual-direction skill, not by this schema.",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "effects": {
+      "type": "array",
+      "description": "Effect Pack ids. Each must resolve to an `approved` asset of type `effect`. An empty array is a legitimate decision (`no effects`), which is why it is not `minItems: 1`.",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "motionDirection": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Motion language id; must agree with the chosen pack's `motionLanguage`."
+    },
+    "density": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Information density id; must agree with the chosen pack's `density`."
+    },
+    "avoid": {
+      "type": "array",
+      "minItems": 1,
+      "description": "What this product must NOT look like. The manifest's load-bearing field: it is the only one that constrains the default aesthetic, so an empty list is a validation error rather than a stylistic preference.",
+      "items": { "type": "string", "minLength": 1 }
+    }
+  }
+}
