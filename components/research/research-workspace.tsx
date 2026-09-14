@@ -42,7 +42,10 @@
 import { useMemo, useState } from "react"
 import {
   acceptAiOutput,
+  addEvidenceLink,
   dispositionTension,
+  getRelationPresentation,
+  isStance,
   rejectAiOutput,
   type DispositionIssue,
   type ResearchData,
@@ -50,10 +53,12 @@ import {
 } from "@/lib/research"
 import { projectArgumentChain } from "@/lib/research-ui"
 import { RESEARCH_LABELS, REVIEWER_COPY } from "@/lib/research-ui/copy"
+import { messages } from "@/lib/i18n"
 import { stylePackId } from "@/lib/kits/adapters/data"
 import { AnchoredQuestion } from "./anchored-question"
 import { ArgumentChain } from "./argument-chain"
 import { ResearchRunningHead } from "./running-head"
+import type { ClosedTension } from "./source-index"
 import type { ReviewerDecision } from "./reviewer-note"
 /* Style Pack 的 CSS 缝。**必须显式 import**：适配层里那份 CSS 只是把 pack 的
  * tokens 引进来，它没有任何组件会去 import 它——不写这一行，pack 的
@@ -123,6 +128,52 @@ export function ResearchWorkspace({ initialData }: { initialData: ResearchData }
     return { ok: true }
   }
 
+  /**
+   * 建立一条引用。**这是本产品唯一改变事实的界面操作。**
+   *
+   * 这个函数里没有一行业务规则：它把 DOM 送来的四个值（都是 string）
+   * 交给 `addEvidenceLink`，守卫在那里面。这里只做一件额外的事——
+   * 把成功时**已经算好的**两个标签（关系词、论断名）返回给表单，
+   * 让它可以立刻显示「已建立引用：支持 · 论断 3」。
+   *
+   * 为什么不把守卫也写一遍：那会给出第二份重复判定，而它与领域层分叉的
+   * 那一天，界面上会出现一个按下去必然报错的按钮。
+   */
+  const createLink = (input: {
+    claimId: string
+    passageId: string
+    stance: string
+    note: string
+  }):
+    | { ok: true; stanceLabel: string; claimLabel: string; closedTensions: ClosedTension[] }
+    | { ok: false; issues: DispositionIssue[] } => {
+    const outcome = addEvidenceLink(data, input, {
+      actor: "human",
+      at: now(),
+      reason: input.note.trim() || "从材料视图补充了一条引用。",
+    })
+    if (!outcome.ok) return { ok: false, issues: outcome.issues }
+
+    setData(outcome.data)
+    const index = data.claims.findIndex((claim) => claim.id === input.claimId) + 1
+    return {
+      ok: true,
+      /* 关系词从契约取。`isStance` 已经在领域层校验过，
+         这里再收窄一次是为了让类型成立——不是为了再判断一次。 */
+      stanceLabel: isStance(input.stance) ? getRelationPresentation(input.stance).label : input.stance,
+      claimLabel: index > 0 ? messages.research.chain.claimLabel(index) : input.claimId,
+      /* **这次写入关掉了哪些缺口**，由领域层在写入时算好。
+         界面用它来做 `resolved` 的收尾入口——缺口一旦不再成立，
+         rail 里那一行也消失了，那是唯一还能捕捉到这一刻的地方。 */
+      closedTensions: outcome.closedTensions.map((tension) => ({
+        tensionId: tension.id,
+        kind: tension.kind,
+        severity: tension.severity,
+        claimId: tension.subject.claimId,
+      })),
+    }
+  }
+
   return (
     <main
       className="rs-shell"
@@ -139,8 +190,10 @@ export function ResearchWorkspace({ initialData }: { initialData: ResearchData }
         <AnchoredQuestion text={chain.anchor.questionText} />
         <ArgumentChain
           chain={chain}
+          data={data}
           onSubmitDisposition={submitDisposition}
           onReviewerDecision={decideReviewerNote}
+          onCreateLink={createLink}
         />
       </div>
     </main>

@@ -344,6 +344,21 @@ export function grayscaleKey(presentation: RelationPresentation): string {
   return `${presentation.form}:${presentation.order}`
 }
 
+/**
+ * 这个值是不是一个合法的 stance。
+ *
+ * **运行时**守卫，不是类型守卫的替代品：取值来自界面控件、也就是来自 DOM，
+ * 到了那里 `Stance` 已经只是一个编译期的约定。`addEvidenceLink` 用它拦住
+ * 一个不合法的关系词——没有它，一条 `stance: "whatever"` 的链接会被写进
+ * 数据，而 `getRelationPresentation` 会在渲染时抛错，把责任推给一个
+ * 已经很远的调用点。
+ *
+ * 判据是 `ALL_STANCES`（契约的单一事实来源），不是这里手写的字符串数组。
+ */
+export function isStance(value: string): value is Stance {
+  return (ALL_STANCES as readonly string[]).includes(value)
+}
+
 /* -------------------------------------------------------------------------- */
 /* 窄屏标签                                                                     */
 /* -------------------------------------------------------------------------- */

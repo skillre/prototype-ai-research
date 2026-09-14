@@ -67,6 +67,60 @@ test.describe("浮层与表单同样完成本地化", () => {
   })
 })
 
+test.describe("研究工作的浮层同样完成本地化", () => {
+  /**
+   * 这一组是 Phase G+H 补上的。
+   *
+   * `LOCALIZED_ROUTES` 只检查**页面打开时**可见的文案，而材料抽屉、轨迹抽屉、
+   * 关联表单全部在浮层里——它们恰好是最容易泄漏英文的地方：
+   *
+   * ```
+   * 来源性质标签      PDF / primary / secondary
+   * 定位文本          第 12 页 / 锚点 cost-curve
+   * 轨迹事件类型      claim-created / tension-dispositioned
+   * 关系词            从契约里取的那四个
+   * ```
+   *
+   * 前两样有合法的英文（PDF 是技术名词，锚点里带着数据自己的 id），
+   * 所以这一组真正查的是第三样：**事件类型必须被翻成人话**。
+   */
+  test("材料抽屉与关联表单", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await page.goto("/r/res-load-bearing")
+    await expect(page.getByTestId("research-shell")).toBeVisible()
+
+    await page.locator(".rs-rail-desktop").getByTestId("open-source-index").click()
+    await expect(page.getByTestId("source-sheet")).toBeVisible()
+    await expectFullyLocalized(page, "材料抽屉")
+
+    // 展开一段原文，并打开关联表单——表单里的关系词是最容易漏的一处。
+    await page.locator(".rs-psg__head").first().click()
+    await page.locator('[data-testid^="compose-"]').first().click()
+    await expect(page.locator(".rs-link")).toBeVisible()
+    await expectFullyLocalized(page, "关联表单")
+
+    // 建立一条引用之后的收尾块。
+    await page.locator(".rs-link__select").selectOption("clm-cost-inflection")
+    await page.locator('.rs-link__stance[data-stance="supports"] input').check()
+    await page.getByTestId("link-submit").click()
+    await expect(page.getByTestId("closed-tensions")).toBeVisible()
+    await expectFullyLocalized(page, "收尾块")
+  })
+
+  test("轨迹抽屉：事件类型必须是人话", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await page.goto("/r/res-load-bearing")
+    await page.locator(".rs-rail-desktop").getByTestId("open-trace").click()
+    await expect(page.getByTestId("trace-sheet")).toBeVisible()
+    await expectFullyLocalized(page, "轨迹抽屉")
+
+    // 显式再查一次：事件类型绝不能以 domain 的 code 出现。
+    const text = await page.getByTestId("trace-sheet").innerText()
+    expect(text).not.toMatch(/claim-created|claim-retracted|link-created|link-retired/)
+    expect(text).not.toMatch(/tension-dispositioned|ai-output-(rejected|accepted)/)
+  })
+})
+
 test.describe("关键控件文案", () => {
   test("演示的侧栏身份、排序与筛选控件为中文", async ({ page }) => {
     await page.goto("/demo")

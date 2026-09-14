@@ -52,8 +52,10 @@ import {
   openTensions,
   projectClaimVerification,
   projectKnownLimitations,
+  projectResolvedTensions,
   projectTensions,
   type KnownLimitation,
+  type ResolvedTension,
 } from "@/lib/research"
 import {
   projectReviewerBoard,
@@ -188,15 +190,28 @@ export interface QuestionGroup {
   isRoot: boolean
 }
 
-/** Running Head 要的全部事实。 */
+/**
+ * Running Head 要的全部事实。
+ *
+ * `disposal` 是三个处置状态各自的数量。**它替代了 Phase E 的
+ * `closedTensionCount`**：那个数与后来出生的 `resolvedTensions` 一样，
+ * 是把两个相反的出口加在一起得到的单一读数——而「已处理 N 项」
+ * 正是这一整个阶段要防止出现的那句话。
+ */
 export interface ResearchAnchor {
   /** 工作代号。数据集里 `title` 刻意留空——它不该被硬编码进数据。 */
   codename: string
   questionText: string
   scopeIn: string[]
   scopeOut: string[]
-  openTensionCount: number
-  closedTensionCount: number
+  disposal: {
+    /** 洞还在，还没人决定怎么办。 */
+    open: number
+    /** 洞还在，人决定带着它交付。 */
+    limitations: number
+    /** 洞被事实填上了。 */
+    resolved: number
+  }
 }
 
 export interface ArgumentChain {
@@ -205,25 +220,31 @@ export interface ArgumentChain {
   groups: QuestionGroup[]
   claims: ClaimProjection[]
   openTensions: Tension[]
-  closedTensions: Tension[]
   /**
-   * 三个处置状态**分开**投影（Phase E）。
+   * 三个处置状态**分开**投影（Phase E 起）。
    *
    * ```
    * openTensions       未处理   —— 洞还在，还没人决定怎么办
-   * resolvedTensions   已解决   —— 洞被事实填上了（resolution: resolved）
    * limitations        已知局限 —— 洞还在，人决定带着它交付
+   * resolvedTensions   已解决   —— 洞被事实填上了
    * ```
    *
-   * `closedTensions` 保留是为了「已闭合 N 项」那个计数（= 后两者之和），
-   * 但**界面不得只显示它**：把 resolved 与 accepted-as-limitation 合成
-   * 「已处理」，正是本阶段存在的全部理由要防的那一件事。
+   * ## ⚠ `resolvedTensions` 的类型在 Phase G+H 变了，而且这是一个真实的修复
+   *
+   * 它曾经是 `Tension[]`（= `projectTensions(data)` 里 resolution 为 resolved 的那些）。
+   * 那个写法**按构造恒为空**：`projectTensions` 只遍历 `deriveTensions(data)`，
+   * 而 `resolved` 的**前提**就是事实改变——事实一变，那条张力就再也推导不出来，
+   * 于是处置记录存在、却没有任何 `Tension` 对象携带它。
+   *
+   * 这正是「已解决」那段界面从未渲染过的根本原因，而不只是「界面到达不了它」。
+   * 现在它和 `limitations` 一样从 **dispositions** 出发——
+   * 「这里曾经有一个洞，现在没了」是一件历史事实，不是当前数据能重新导出的状态。
    */
-  resolvedTensions: Tension[]
+  resolvedTensions: ResolvedTension[]
   limitations: KnownLimitation[]
   /** Phase F —— 审稿意见板（三类分开持有）。 */
   reviewer: ReviewerBoard
-  /** 第一视觉主角：**第一个**未处理空缺的论断。首屏卡片用它。 */
+  /** 第一视觉主角：**第一个**未处置空缺的论断。首屏卡片用它。 */
   primaryGap: { claim: ClaimProjection; gap: ClaimGap } | null
   /** 论断 id → 序号。Tension Rail 要把张力翻成「论断 N」。 */
   claimIndex: Map<Id, number>
@@ -240,10 +261,14 @@ export interface ArgumentChain {
  * 明确要求调用方提供 `locatorLabel`，因为「第 4 页第 2 段」与「00:12:40」
  * 是两种不同的定位方式，格式化规则不该被焊进语义层。
  *
+ * 参数取 `{ locator }` 而不是整个 `Passage`：交付物的引用（`FindingCitation`）
+ * 带着同样的 locator，但它不是一个 `Passage`。要求整个 Passage 会逼调用方
+ * 伪造一个，或者写一个 `as never` ——两种都比放宽这一个参数糟。
+ *
  * `labels` 由调用方注入（来自 i18n），因为这里是纯函数，不读词典。
  */
 export function formatLocator(
-  passage: Passage,
+  passage: { locator: Passage["locator"] },
   labels: { page: (n: number) => string; anchor: (a: string) => string; timecode: (s: number) => string },
 ): string {
   const { page, anchor, tStart } = passage.locator
@@ -360,10 +385,11 @@ export function projectArgumentChain(
   const tensions = projectTensions(data)
   const open = openTensions(tensions)
 
-  /* 三个处置状态分开取。`closedTensions` 只用于兼容计数——
-     界面读的是 `resolvedTensions` 与 `limitations` 两个**不同**的清单。 */
-  const closed = tensions.filter((tension) => tension.resolution !== null)
-  const resolved = tensions.filter((tension) => tension.resolution === "resolved")
+  /* 两个「已处置」出口分别从**各自的处置记录**取，不从 `tensions` 里筛。
+     理由见 `ArgumentChain.resolvedTensions` 的说明：`resolved` 以事实改变为前提，
+     而事实一变 `deriveTensions` 就不再产出那条张力——从 `tensions` 里筛
+     按构造恒为空。 */
+  const resolved = projectResolvedTensions(data)
   const limitations = projectKnownLimitations(data)
   const reviewer = projectReviewerBoard(data, reviewerCopy, labels)
 
@@ -483,13 +509,15 @@ export function projectArgumentChain(
       questionText: anchorQuestion?.text ?? "",
       scopeIn: data.research.scope.in,
       scopeOut: data.research.scope.out,
-      openTensionCount: open.length,
-      closedTensionCount: closed.length,
+      disposal: {
+        open: open.length,
+        limitations: limitations.length,
+        resolved: resolved.length,
+      },
     },
     groups,
     claims: projected,
     openTensions: open,
-    closedTensions: closed,
     resolvedTensions: resolved,
     limitations,
     reviewer,

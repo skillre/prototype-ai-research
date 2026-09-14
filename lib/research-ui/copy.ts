@@ -20,6 +20,7 @@
 
 import { messages } from "@/lib/i18n"
 import type { ReviewerCopy } from "./reviewer"
+import type { TraceCopy } from "./trace"
 
 /** 定位文本的格式化函数。属于呈现层，因此由词典提供（见 relation-contract 的说明）。 */
 export const RESEARCH_LABELS = {
@@ -40,4 +41,29 @@ export const REVIEWER_COPY: ReviewerCopy = {
   critiqueNext: messages.research.reviewer.critiqueNext,
   readingTrap: messages.research.reviewer.readingTrap,
   rejectedPrefix: messages.research.reviewer.rejectedPrefix,
+}
+
+/**
+ * 轨迹的文案。
+ *
+ * ⚠ 其中三项**刻意从别的地方复用**，而不是在 `trace` 段里各写一份：
+ *
+ * ```
+ * claimLabel    ← chain.claimLabel      论断在链条与轨迹里必须同名
+ * tensionKind   ← rail.kind             缺口在窄带与轨迹里必须同名
+ * aiClass       ← reviewer.classLabel   三类 AI 输出在旁注与轨迹里必须同名
+ * ```
+ *
+ * 同一个对象在两个视图里叫两个名字，是最难被发现的本地化缺陷类型：
+ * 两句话都对，只是读者会以为它们是两件事。
+ */
+export const TRACE_COPY: TraceCopy = {
+  kind: messages.research.trace.kind,
+  actor: messages.research.trace.actor,
+  resolution: messages.research.trace.resolution,
+  subjectMissing: messages.research.trace.subjectMissing,
+  claimLabel: messages.research.chain.claimLabel,
+  tensionKind: messages.research.rail.kind,
+  aiClass: messages.research.reviewer.classLabel,
+  linkSubject: messages.research.trace.linkSubject,
 }

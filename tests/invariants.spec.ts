@@ -21,12 +21,14 @@ import {
   isTensionStillRaised,
   openTensions,
   parseTensionId,
+  projectResolvedTensions,
   projectTensions,
   tensionIdFor,
 } from "../lib/research/tensions"
 import { traceForSubject } from "../lib/research/trace"
 import {
   acceptAiOutput,
+  addEvidenceLink,
   dispositionTension,
   rejectAiOutput,
   retractClaim,
@@ -34,6 +36,7 @@ import {
   type DispositionOutcome,
 } from "../lib/research/operations"
 import { constructAiOutput, mayEnterFinding } from "../lib/research/ai-reviewer"
+import { validateSourceIndex } from "../lib/research/sources"
 
 /**
  * 拆开处置结果。
@@ -54,13 +57,14 @@ function expectDisposed(outcome: DispositionOutcome) {
 }
 
 /**
- * 产品不变量 —— **15 条**，每条都有一个**负例**。
+ * 产品不变量 —— **18 条**，每条都有一个**负例**。
  *
  * | 阶段 | 新增 |
  * |---|---|
  * | Phase A | 1–12 |
  * | Phase E | 13 `resolved.requires-fact-change` · 14 `disposition.writes-trace` |
  * | Phase F | 15 `ai-reviewer.cannot-mutate` |
+ * | Phase G+H | 16 `evidence-link.no-duplicate` · 17 `link-write.recomputes-tensions` · 18 `resolved-ui-reachable` |
  *
  * ## 为什么每个不变量都要有负例
  *
@@ -1070,5 +1074,305 @@ test.describe("15 · AI 不得改动业务事实", () => {
       if (output.kind === "suggestion") expect(mayEnterFinding(output)).toBe(false)
       else expect(mayEnterFinding(output)).toBe(true)
     }
+  })
+})
+
+/* -------------------------------------------------------------------------- */
+/* Phase G+H                                                                    */
+/* -------------------------------------------------------------------------- */
+
+test.describe("16 · evidence-link.no-duplicate", () => {
+  /** 一条可用的片段与一条可用的论断。数据集里它们本来**没有**关联。 */
+  const PASSAGE = "psg-summary-cost"
+  const CLAIM = "clm-cost-inflection"
+
+  test("正例：一个新的 (claim, passage, stance) 可以被建立，并留下轨迹", () => {
+    const data = freshResearch()
+    const before = data.links.length
+    const outcome = addEvidenceLink(
+      data,
+      { claimId: CLAIM, passageId: PASSAGE, stance: "supports" },
+      { actor: "human", at: "2026-09-11T10:00:00+08:00", reason: "补一份成本口径的材料。" },
+    )
+
+    expect(outcome.ok).toBe(true)
+    if (!outcome.ok) return
+    expect(outcome.data.links.length).toBe(before + 1)
+    expect(outcome.link.claimId).toBe(CLAIM)
+    expect(outcome.link.passageId).toBe(PASSAGE)
+    expect(outcome.link.stance).toBe("supports")
+    expect(outcome.link.retiredAt).toBeNull()
+
+    const trace = traceForSubject(outcome.data, "evidence-link", outcome.link.id)
+    expect(trace.map((entry) => entry.kind)).toEqual(["link-created"])
+  })
+
+  test("负例：同一 (claim, passage, stance) 第二次被拒绝", () => {
+    const data = freshResearch()
+    const meta = { actor: "human" as const, at: "2026-09-11T10:00:00+08:00", reason: "再补一次。" }
+
+    const first = addEvidenceLink(data, { claimId: CLAIM, passageId: PASSAGE, stance: "supports" }, meta)
+    expect(first.ok).toBe(true)
+    if (!first.ok) return
+
+    const second = addEvidenceLink(
+      first.data,
+      { claimId: CLAIM, passageId: PASSAGE, stance: "supports" },
+      meta,
+    )
+    expect(second.ok).toBe(false)
+    if (second.ok) return
+    expect(second.issues.map((issue) => issue.code)).toContain("link/duplicate")
+  })
+
+  test("负例：被拒绝的重复写入不改变任何状态，也不写轨迹", () => {
+    const data = freshResearch()
+    const meta = { actor: "human" as const, at: "2026-09-11T10:00:00+08:00", reason: "重复。" }
+    const first = addEvidenceLink(data, { claimId: CLAIM, passageId: PASSAGE, stance: "supports" }, meta)
+    if (!first.ok) throw new Error("夹具前提不成立")
+
+    const second = addEvidenceLink(
+      first.data,
+      { claimId: CLAIM, passageId: PASSAGE, stance: "supports" },
+      meta,
+    )
+    expect(second.ok).toBe(false)
+    /* 失败返回里**没有 data** —— 它压根没给出一个「可能已经变了」的聚合。
+       这不是约定，是 `LinkOutcome` 的类型形状。 */
+    expect("data" in second).toBe(false)
+    expect(first.data.links.length).toBe(data.links.length + 1)
+  })
+
+  test("换一个 stance 不算重复——同一片段可以既支持又反驳", () => {
+    const data = freshResearch()
+    const meta = { actor: "human" as const, at: "2026-09-11T10:00:00+08:00", reason: "另一面。" }
+
+    const support = addEvidenceLink(data, { claimId: CLAIM, passageId: PASSAGE, stance: "supports" }, meta)
+    expect(support.ok).toBe(true)
+    if (!support.ok) return
+
+    const against = addEvidenceLink(
+      support.data,
+      { claimId: CLAIM, passageId: PASSAGE, stance: "contradicts" },
+      meta,
+    )
+    expect(against.ok).toBe(true)
+  })
+
+  test("负例：已停用的同一条链接不算重复——撤销自己的撤销必须可行", () => {
+    const data = freshResearch()
+    const meta = { actor: "human" as const, at: "2026-09-11T10:00:00+08:00", reason: "先撤再引回来。" }
+
+    const first = addEvidenceLink(data, { claimId: CLAIM, passageId: PASSAGE, stance: "supports" }, meta)
+    if (!first.ok) throw new Error("夹具前提不成立")
+
+    const retired = retireLink(first.data, first.link.id, meta)
+    const again = addEvidenceLink(
+      retired,
+      { claimId: CLAIM, passageId: PASSAGE, stance: "supports" },
+      meta,
+    )
+    expect(again.ok, "停用之后重新引用同一条关系是合法的").toBe(true)
+  })
+
+  test("负例：论断 / 片段不存在，或 stance 非法，一律被拒绝", () => {
+    const data = freshResearch()
+    const meta = { actor: "human" as const, at: "2026-09-11T10:00:00+08:00", reason: "坏输入。" }
+
+    const noClaim = addEvidenceLink(
+      data,
+      { claimId: "clm-does-not-exist", passageId: PASSAGE, stance: "supports" },
+      meta,
+    )
+    expect(noClaim.ok).toBe(false)
+    if (!noClaim.ok) expect(noClaim.issues.map((i) => i.code)).toContain("link/unknown-claim")
+
+    const noPassage = addEvidenceLink(
+      data,
+      { claimId: CLAIM, passageId: "psg-does-not-exist", stance: "supports" },
+      meta,
+    )
+    expect(noPassage.ok).toBe(false)
+    if (!noPassage.ok) expect(noPassage.issues.map((i) => i.code)).toContain("link/unknown-passage")
+
+    /* stance 是**运行时**校验：值来自 DOM，类型在那里已经不管用了。 */
+    const badStance = addEvidenceLink(
+      data,
+      { claimId: CLAIM, passageId: PASSAGE, stance: "whatever" },
+      meta,
+    )
+    expect(badStance.ok).toBe(false)
+    if (!badStance.ok) expect(badStance.issues.map((i) => i.code)).toContain("link/invalid-stance")
+  })
+
+  test("夹具本身不含重复的活跃链接", () => {
+    expect(validateSourceIndex(freshResearch())).toEqual([])
+  })
+})
+
+test.describe("17 · link-write.recomputes-tensions", () => {
+  const UNSUPPORTED = tensionIdFor("unsupported-claim", "clm-cost-inflection")
+
+  test("补一条支持引用之后，缺口**自己**消失——没有任何代码去删它", () => {
+    const data = freshResearch()
+    expect(isTensionStillRaised(data, UNSUPPORTED)).toBe(true)
+
+    const outcome = addEvidenceLink(
+      data,
+      { claimId: "clm-cost-inflection", passageId: "psg-summary-cost", stance: "supports" },
+      { actor: "human", at: "2026-09-11T10:00:00+08:00", reason: "补材料。" },
+    )
+    expect(outcome.ok).toBe(true)
+    if (!outcome.ok) return
+
+    /* 没有任何一行代码调过「删除一条张力」——本模块里不存在那个函数。
+       它消失是因为 `deriveTensions` 下次读的时候算不出它了。 */
+    expect(isTensionStillRaised(outcome.data, UNSUPPORTED)).toBe(false)
+    expect(outcome.closedTensions.map((tension) => tension.id)).toEqual([UNSUPPORTED])
+  })
+
+  test("重算是纯函数：写入前后两次推导都是确定性的", () => {
+    const data = freshResearch()
+    const outcome = addEvidenceLink(
+      data,
+      { claimId: "clm-cost-inflection", passageId: "psg-summary-cost", stance: "supports" },
+      { actor: "human", at: "2026-09-11T10:00:00+08:00", reason: "补材料。" },
+    )
+    if (!outcome.ok) throw new Error("夹具前提不成立")
+    expect(deriveTensions(outcome.data)).toEqual(deriveTensions(outcome.data))
+  })
+
+  test("写入同时产生**新的**张力：单一来源立刻出现（事实变了，问题也变了）", () => {
+    const data = freshResearch()
+    const outcome = addEvidenceLink(
+      data,
+      { claimId: "clm-cost-inflection", passageId: "psg-summary-cost", stance: "supports" },
+      { actor: "human", at: "2026-09-11T10:00:00+08:00", reason: "补材料。" },
+    )
+    if (!outcome.ok) return
+
+    const kinds = deriveTensions(outcome.data)
+      .filter((tension) => tension.subject.claimId === "clm-cost-inflection")
+      .map((tension) => tension.kind)
+    /* 洞被填上了，但只填了一处——`single-source` 是**新的**真话。
+       把它藏起来会比原来的空洞更糟。 */
+    expect(kinds).toContain("single-source")
+    expect(kinds).not.toContain("unsupported-claim")
+  })
+
+  test("停用一条支持引用会让缺口**回来**（它是活的，不是一次性快照）", () => {
+    const data = freshResearch()
+    const outcome = addEvidenceLink(
+      data,
+      { claimId: "clm-cost-inflection", passageId: "psg-summary-cost", stance: "supports" },
+      { actor: "human", at: "2026-09-11T10:00:00+08:00", reason: "补材料。" },
+    )
+    if (!outcome.ok) return
+
+    const retired = retireLink(outcome.data, outcome.link.id, {
+      actor: "human",
+      at: "2026-09-12T10:00:00+08:00",
+      reason: "引错了。",
+    })
+    expect(isTensionStillRaised(retired, UNSUPPORTED)).toBe(true)
+  })
+})
+
+test.describe("18 · resolved-ui-reachable", () => {
+  const UNSUPPORTED = tensionIdFor("unsupported-claim", "clm-cost-inflection")
+
+  /**
+   * 这条不变量是**集成契约**：它走完整条真实操作路径，不构造假的 fixture。
+   *
+   * ```
+   * 事实改变 → 张力不再 derive → resolved 合法 → resolved 投影非空
+   * ```
+   *
+   * 它在 Phase G+H 被补上，是因为在此之前这条链的最后一环**按构造
+   * 不可能成立**：`resolvedTensions` 从 `projectTensions` 里筛，
+   * 而那个投影只遍历派生张力——resolved 的前提（事实改变）恰好让
+   * 它自己的投影永远为空。第 4 步就是那个修复的回归守卫。
+   */
+  test("四步全通：补引用 → 缺口消失 → resolved 被接受 → 投影可渲染", () => {
+    const data = freshResearch()
+
+    // 1. 事实改变
+    const linked = addEvidenceLink(
+      data,
+      { claimId: "clm-cost-inflection", passageId: "psg-summary-cost", stance: "supports" },
+      { actor: "human", at: "2026-09-11T10:00:00+08:00", reason: "补一份成本口径的材料。" },
+    )
+    expect(linked.ok, "第 1 步：补引用").toBe(true)
+    if (!linked.ok) return
+    expect(linked.closedTensions.map((t) => t.id)).toEqual([UNSUPPORTED])
+
+    // 2. 现在 `resolved` 才是合法的（在此之前会被不变量 13 拒绝）
+    const disposed = dispositionTension(linked.data, UNSUPPORTED, "resolved", {
+      actor: "human",
+      at: "2026-09-11T10:05:00+08:00",
+      reason: "材料已经补上，这条缺口不再成立。",
+    })
+    expect(disposed.ok, "第 2 步：标记为已解决").toBe(true)
+    if (!disposed.ok) return
+
+    // 3. 投影里真的有了它——这一步是修复的核心
+    const resolved = projectResolvedTensions(disposed.data)
+    expect(resolved).toHaveLength(1)
+    expect(resolved[0]!.tensionId).toBe(UNSUPPORTED)
+    expect(resolved[0]!.kind).toBe("unsupported-claim")
+    /* claimId 必须仍然可追溯。`resolved` 的一大类缺陷就是这条记录
+       在张力消失之后变成一句无法核对的话——它现在从 id 里拆回来。 */
+    expect(resolved[0]!.claimId).toBe("clm-cost-inflection")
+    expect(resolved[0]!.reason).toContain("材料已经补上")
+
+    // 4. 事实确实不在了，而且三个桶互不重叠
+    expect(resolved[0]!.stillRaised, "resolved 的前提就是事实已变").toBe(false)
+    const openIds = new Set(openTensions(projectTensions(disposed.data)).map((t) => t.id))
+    expect(openIds.has(UNSUPPORTED)).toBe(false)
+  })
+
+  test("负例：事实没变时，这条路径的第 2 步走不通（证明第 1 步不是装饰）", () => {
+    const data = freshResearch()
+    const disposed = dispositionTension(data, UNSUPPORTED, "resolved", {
+      actor: "human",
+      at: "2026-09-11T10:05:00+08:00",
+      reason: "我没补任何材料，但我标记为已解决。",
+    })
+    expect(disposed.ok).toBe(false)
+    if (!disposed.ok) {
+      expect(disposed.issues.map((issue) => issue.code)).toContain(
+        "disposition/resolved-requires-fact-change",
+      )
+    }
+    // 投影仍然是空的——拒绝没有留下任何半个状态。
+    expect(projectResolvedTensions(data)).toEqual([])
+  })
+
+  test("负例：把证据停用之后，那条「已解决」变成历史（stillRaised 翻回 true）", () => {
+    const data = freshResearch()
+    const linked = addEvidenceLink(
+      data,
+      { claimId: "clm-cost-inflection", passageId: "psg-summary-cost", stance: "supports" },
+      { actor: "human", at: "2026-09-11T10:00:00+08:00", reason: "补材料。" },
+    )
+    if (!linked.ok) return
+    const disposed = dispositionTension(linked.data, UNSUPPORTED, "resolved", {
+      actor: "human",
+      at: "2026-09-11T10:05:00+08:00",
+      reason: "已解决。",
+    })
+    if (!disposed.ok) return
+
+    const retired = retireLink(disposed.data, linked.link.id, {
+      actor: "human",
+      at: "2026-09-12T10:00:00+08:00",
+      reason: "那份材料后来撤回了。",
+    })
+
+    const resolved = projectResolvedTensions(retired)
+    expect(resolved).toHaveLength(1)
+    /* 记录留着（历史不能丢），但它现在说的是「这条洞又回来了」。
+       这与 `KnownLimitation.stillRaised` 是**同一个字段、相反的方向**。 */
+    expect(resolved[0]!.stillRaised).toBe(true)
   })
 })

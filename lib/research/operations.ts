@@ -17,16 +17,19 @@
  * 物理删除会把这个产品最重要的信息（我考虑过什么、为什么排除）删掉。
  */
 
-import { getClaim } from "./projections"
-import { isTensionStillRaised, parseTensionId } from "./tensions"
+import { getClaim, getPassage, getSourceForPassage } from "./projections"
+import { getRelationPresentation, isStance } from "./relation-contract"
+import { deriveTensions, isTensionStillRaised, parseTensionId } from "./tensions"
 import { appendTrace } from "./trace"
 import type {
   Actor,
   Claim,
+  DerivedTension,
   EvidenceLink,
   Finding,
   IsoTimestamp,
   ResearchData,
+  Stance,
   TensionDisposition,
   TensionResolution,
 } from "./types"
@@ -74,20 +77,198 @@ export function addClaim(
   })
 }
 
-/** 新增一条证据链接，并留下创建记录。 */
-export function addLink(
+/**
+ * 新增一条证据链接的结果。
+ *
+ * `closedTensions` 是**这次写入让哪些缺口不再成立**（Phase G+H 新增）。
+ * 它是本条操作里唯一一个「事后才知道」的字段，而它恰好是让
+ * `resolved` 在界面上**第一次可达**的那把钥匙——理由见 `addEvidenceLink`。
+ */
+export type LinkOutcome =
+  | {
+      ok: true
+      data: ResearchData
+      link: EvidenceLink
+      /** 写入前成立、写入后不再被推导出来的张力。按 id 排序。 */
+      closedTensions: DerivedTension[]
+    }
+  | { ok: false; issues: DispositionIssue[] }
+
+/**
+ * 新增一条证据链接。**这是唯一的人写关系入口，且带守卫。**
+ *
+ * ## 它是这个产品里唯一「改变事实」的界面操作
+ *
+ * 处置（`dispositionTension`）动的是人的判断；采纳/驳回 AI 输出动的是轨迹。
+ * 只有这一个操作会真的改变论证——它会填上一个洞，或者挂上一条反驳。
+ * 所以它是本阶段最重要的入口，也是守卫最密的那个。
+ *
+ * ## 四条守卫
+ *
+ * ```
+ * link/unknown-claim
+ *     论断不存在。放它过去就会造出一条指向虚空的引用，而
+ *     `evidence.all-resolvable` 会在**很久以后**失败——在某个没人把它
+ *     和这次点击联系起来的地方。
+ *
+ * link/unknown-passage
+ *     片段不存在。同上，而且更隐蔽：界面上一切正常，只有顺着引用回去
+ *     核对原文时才会发现没有「回去」这个地方。
+ *
+ * link/duplicate
+ *     同一 (claimId, passageId, stance) 不得重复。见下方说明。
+ *
+ * link/invalid-stance
+ *     stance 必须来自 `Stance` union。这条守卫是**运行时**的而不是编译期的：
+ *     取值来自界面控件、也就是来自 DOM，类型在那里已经不管用了。
+ * ```
+ *
+ * ## 为什么重复必须被拒绝，而不是静默去重
+ *
+ * 重复链接不是无害的冗余——它会**静默抬高证据强度**。引用计数与证据列表
+ * 长度都会变成 2，研究者看到的是「两处引用」，而实际只有一处。
+ * 这正是 `single-source` 张力在防的那种自欺，只不过它绕过了张力：
+ * 来源确实只有一个，所以张力还是只报一次，但界面上的条数已经不对了。
+ *
+ * ## 为什么只查**活跃**链接
+ *
+ * 停用过的同一条链接不算重复：那意味着「我引用过、撤了、现在再引回来」，
+ * 而这是一条真实的研究轨迹。拒绝它等于让研究者无法撤销自己的撤销。
+ *
+ * ## 缺口自动重算 —— 没有任何代码去删张力
+ *
+ * 本函数不碰 `deriveTensions` 的输入之外的任何东西，也不存在「删一条张力」
+ * 的操作。新链接写进去之后，缺口是**下一次读取时**重新算出来的。
+ * 这是「派生值从不存储」的直接结果：不需要通知、不需要失效、不可能忘记。
+ */
+export function addEvidenceLink(
   data: ResearchData,
-  link: EvidenceLink,
+  candidate: { claimId: string; passageId: string; stance: string; note?: string },
   meta: { actor: Actor; at: IsoTimestamp; reason: string },
-): ResearchData {
-  const next = { ...data, links: [...data.links, link] }
-  return appendTrace(next, {
-    at: meta.at,
-    actor: meta.actor,
-    kind: "link-created",
-    subject: { type: "evidence-link", id: link.id },
-    reason: meta.reason,
-  })
+): LinkOutcome {
+  const issues: DispositionIssue[] = []
+
+  const claim = getClaim(data, candidate.claimId)
+  if (!claim) {
+    issues.push({
+      code: "link/unknown-claim",
+      message: `这条论断不存在：${candidate.claimId}。引用必须先指向一条真实的论断。`,
+    })
+  }
+
+  const passage = getPassage(data, candidate.passageId)
+  if (!passage) {
+    issues.push({
+      code: "link/unknown-passage",
+      message: `这段原文不存在：${candidate.passageId}。引用只能落到真实存在的原文片段上。`,
+    })
+  }
+
+  /* stance 的运行时校验。`isStance` 读契约的单一事实来源（`ALL_STANCES`），
+     不是这里手写的四个字符串——手写的那一份会在契约新增 stance 时静默漏掉。 */
+  if (!isStance(candidate.stance)) {
+    issues.push({
+      code: "link/invalid-stance",
+      message: `这不是一个合法的关系类型：${candidate.stance}。`,
+    })
+  }
+
+  if (isStance(candidate.stance) && claim && passage) {
+    const duplicate = data.links.find(
+      (link) =>
+        link.retiredAt === null &&
+        link.claimId === candidate.claimId &&
+        link.passageId === candidate.passageId &&
+        link.stance === candidate.stance,
+    )
+    if (duplicate) {
+      issues.push({
+        code: "link/duplicate",
+        message: `这条引用已经存在：同一段原文已经以「${getRelationPresentation(candidate.stance).label}」关联到这条论断。重复引用会静默抬高证据强度。`,
+      })
+    }
+  }
+
+  if (issues.length > 0) return { ok: false, issues }
+
+  /* 走到这里说明前面都校验过了。`candidate` 是宽类型（值来自 DOM），
+     所以这里显式收窄——编译器不会替我们把运行时守卫连起来。 */
+  const stance = candidate.stance as Stance
+  const link: EvidenceLink = {
+    /* 确定性 id，与轨迹编号同源：同样的一串操作必然得到同样的 id。
+       不用随机数，测试与截图才可复现。 */
+    id: `lnk-new-${String(data.links.length + 1).padStart(3, "0")}`,
+    claimId: candidate.claimId,
+    passageId: candidate.passageId,
+    stance,
+    note: candidate.note?.trim() ? candidate.note.trim() : undefined,
+    createdBy: meta.actor,
+    createdAt: meta.at,
+    retiredAt: null,
+  }
+
+  const next: ResearchData = { ...data, links: [...data.links, link] }
+
+  /**
+   * 这次写入之后，哪些缺口不再成立。
+   *
+   * ## 为什么它必须从**这次操作**里返回
+   *
+   * 它是把 `resolved` 变成可达的唯一途径，而原因是一条很容易被忽略的时序事实：
+   *
+   * ```
+   * 补上引用  →  缺口不再被 deriveTensions 产出  →  rail 里那一行消失
+   *                                              →  「处理」按钮也随之消失
+   *                                              →  没有任何入口能再打开处置面板
+   * ```
+   *
+   * 也就是说：**`resolved` 刚刚变得合法，同时它的入口刚刚消失。**
+   * 用户唯一能捕捉到这一刻的地方，就是刚刚做的那次操作本身。
+   * 所以在写入时就比较前后两次推导，把「刚刚被填上的洞」交出来，
+   * 由界面就地提供一个「把它记下来」的收尾入口。
+   *
+   * 这也是为什么它不能事后算：事后只能算出「现在不成立的缺口」，
+   * 而那时已经分不清哪些是**之前就不成立**的。
+   */
+  const after = new Set(deriveTensions(next).map((tension) => tension.id))
+  const closedTensions = deriveTensions(data)
+    .filter((tension) => !after.has(tension.id))
+    .sort((a, b) => a.id.localeCompare(b.id))
+
+  return {
+    ok: true,
+    link,
+    closedTensions,
+    data: appendTrace(next, {
+      at: meta.at,
+      actor: meta.actor,
+      kind: "link-created",
+      subject: { type: "evidence-link", id: link.id },
+      /* 理由里带上两端与关系词。轨迹要能回答「这条引用什么时候加进去的、
+         以什么身份加的」——「加了一条链接」这句话本身回答不了。 */
+      reason: `${getRelationPresentation(stance).label}：${describeLinkEnds(next, link)}。${meta.reason}`,
+    }),
+  }
+}
+
+/**
+ * 把一条链接的两端说成人话。
+ *
+ * 轨迹与界面共用同一份措辞，所以它放在领域层而不是在组件里拼字符串——
+ * 两处各拼一遍，就会在两处各错一遍，而且只有一处会被修。
+ */
+export function describeLinkEnds(data: ResearchData, link: EvidenceLink): string {
+  const claim = getClaim(data, link.claimId)
+  const source = getSourceForPassage(data, link.passageId)
+  const passage = getPassage(data, link.passageId)
+
+  const index = claim ? data.claims.findIndex((candidate) => candidate.id === claim.id) + 1 : 0
+  /* 来源解析不出来时**明说**，不要退化成空字符串：那会让轨迹里出现
+     「支持： → 论断 3」这种看不出坏了的一行。 */
+  const sourcePart = source
+    ? `${source.title}${passage ? "" : "（片段缺失）"}`
+    : "来源无法解析"
+  return `${sourcePart} → 论断 ${index || "?"}`
 }
 
 /**
@@ -155,6 +336,44 @@ export function retireLink(
     subject: { type: "evidence-link", id: linkId },
     reason: meta.reason,
   })
+}
+
+/**
+ * 把一个处置结果写进轨迹的理由字段。
+ *
+ * ## 为什么是「格式」而不是「字段」
+ *
+ * `TraceEntry` 没有结构化的 payload——它是事件，不是一个带 schema 的表。
+ * 而轨迹必须回答「这个局限什么时候被接受的」，这就要求那条记录里
+ * **带着出口本身**，不能只有人写的那句话：`accepted-as-limitation` 的
+ * 「我带着这个洞交付」和 `resolved` 的「洞没了」是两句相反的话，
+ * 只留下理由文本会让半年后的人读不出是哪一句。
+ *
+ * 所以出口被编码进理由的前缀。**写入与读取共用下面这一对函数**——
+ * 两处各写一遍前缀逻辑，就会在两处各错一遍，而且只有一处会被修。
+ */
+export function formatDispositionReason(resolution: TensionResolution, reason: string): string {
+  return `${resolution}：${reason}`
+}
+
+/**
+ * `formatDispositionReason` 的逆运算。
+ *
+ * 认不出前缀时返回 `resolution: null` 并把整串当作正文——
+ * 数据集里可能存在手写的轨迹条目，而**读不懂不等于要丢掉它**。
+ * 返回一个猜测的出口会让轨迹说谎。
+ */
+export function parseDispositionReason(raw: string): {
+  resolution: TensionResolution | null
+  text: string
+} {
+  for (const resolution of ["resolved", "accepted-as-limitation"] as const) {
+    const prefix = `${resolution}：`
+    if (raw.startsWith(prefix)) {
+      return { resolution, text: raw.slice(prefix.length) }
+    }
+  }
+  return { resolution: null, text: raw }
 }
 
 /**
@@ -264,7 +483,7 @@ export function dispositionTension(
       actor: meta.actor,
       kind: "tension-dispositioned",
       subject: { type: "tension", id: tensionId },
-      reason: `${resolution}：${meta.reason}`,
+      reason: formatDispositionReason(resolution, meta.reason),
     }),
   }
 }

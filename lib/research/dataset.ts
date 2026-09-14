@@ -54,6 +54,7 @@ const T_CLAIMS = "2026-09-05T10:05:00+08:00"
 const T_RETRACT = "2026-09-07T16:40:00+08:00"
 const T_REVIEW = "2026-09-08T11:15:00+08:00"
 const T_DISPOSITION = "2026-09-09T15:30:00+08:00"
+const T_FINDING = "2026-09-10T09:20:00+08:00"
 
 /* -------------------------------------------------------------------------- */
 /* Research 与 Questions                                                       */
@@ -555,6 +556,14 @@ const findings: Finding[] = [
       "A 路线的产能利用率只有单一券商报告可查，未经交叉验证。",
       "良率差距（94% vs 91%）的来源双方均未公开原始方法，无法判断谁的测量口径更接近真实。",
     ],
+    /* 三条边界里，只有第二条是对着工作区里那条 `accepted-as-limitation` 写的。
+       另外两条是手写的判断——它们不来自任何处置，所以 ref 是 null。
+
+       ⚠ 这个位置对应**不是**一条规律：交付物里的一句措辞可以合并几条局限，
+       也可以完全不引用任何一条。refs 记录的是「这句话对谁负责」，
+       不是「每条局限都必须有一句话」。 */
+    knownLimitationRefs: [null, "single-source::clm-utilization-recovery", null],
+    generatedAt: T_FINDING,
   },
 ]
 

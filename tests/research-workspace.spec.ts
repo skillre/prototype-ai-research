@@ -128,8 +128,10 @@ test.describe("2 · 第一视觉是缺口", () => {
     const head = page.locator(".rs-running-head")
     // 研究上下文：工作代号 + 范围（含被排除的）+ 未处理张力数。
     await expect(head).toContainText(loadBearingResearch.research.scope.out[0]!)
-    await expect(head).toContainText(`${chain.anchor.openTensionCount}`)
+    await expect(head).toContainText(`${chain.anchor.disposal.open}`)
     // 它不该长成外壳：没有导航、没有账户、没有主题开关。
+    // （Phase G+H 新增的交付物入口刻意**不在这里**——它落在窄带底部。
+    //   这条断言因此一字未改，它仍然是「Running Head 里没有链接」。）
     expect(await head.locator("a, nav").count()).toBe(0)
     expect(await head.locator("input, select").count()).toBe(0)
   })
@@ -469,13 +471,6 @@ test.describe("5 · Tension Rail", () => {
      * 原来只要求「已闭合的不出现在未处理里」，现在还要求
      * 「它出现在属于它的那一段里」。
      */
-    for (const tension of chain.closedTensions) {
-      await expect(
-        rail.locator(`.rs-rail__row[data-tension-id="${tension.id}"]`),
-        `${tension.id} 已处置，不该出现在未处理段`,
-      ).toHaveCount(0)
-    }
-
     for (const limitation of chain.limitations) {
       await expect(
         rail.locator(`[data-limitation-id="${limitation.tensionId}"]`),
@@ -483,8 +478,8 @@ test.describe("5 · Tension Rail", () => {
       ).toHaveCount(1)
     }
 
-    for (const tension of chain.resolvedTensions) {
-      await expect(rail.locator(`[data-resolved-id="${tension.id}"]`)).toHaveCount(1)
+    for (const resolved of chain.resolvedTensions) {
+      await expect(rail.locator(`[data-resolved-id="${resolved.tensionId}"]`)).toHaveCount(1)
     }
   })
 

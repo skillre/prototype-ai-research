@@ -43,22 +43,39 @@ import { useState } from "react"
 import { StructureReveal } from "@/lib/kits/adapters/structure"
 import { Pointer } from "@/lib/kits/adapters/pointer"
 import { messages } from "@/lib/i18n"
-import type { DispositionIssue, TensionResolution } from "@/lib/research"
+import type { DispositionIssue, ResearchData, TensionResolution } from "@/lib/research"
 import type { ArgumentChain as ArgumentChainData } from "@/lib/research-ui"
 import { ArgumentClaim } from "./argument-claim"
 import { ReviewerNoteCard, type ReviewerDecision } from "./reviewer-note"
 import { GapBody } from "./unsupported-gap"
+import { BottomSheet } from "./bottom-sheet"
+import { SourceIndex, type ClosedTension } from "./source-index"
+import { TraceDrawer } from "./trace-drawer"
 import { TensionRail, TensionRailDock } from "./tension-rail"
 
 const t = messages.research.chain
 const tg = messages.research.gap
+const ts = messages.research.sources
+const tt = messages.research.trace
+
+/* 两个次要视图抽屉的标题 id。与处置抽屉的那个一样，是稳定的、唯一的——
+   `aria-labelledby` 指向一个重复的 id 会让对话框的名字变成浏览器挑中的那一个。 */
+const SOURCE_SHEET_TITLE_ID = "rs-source-sheet-title"
+const TRACE_SHEET_TITLE_ID = "rs-trace-sheet-title"
+
+/** 次要视图。它只有两个取值，所以是一个联合类型而不是两个布尔值。 */
+export type SecondaryView = "sources" | "trace"
 
 export function ArgumentChain({
   chain,
+  data,
   onSubmitDisposition,
   onReviewerDecision,
+  onCreateLink,
 }: {
   chain: ArgumentChainData
+  /** 原始数据。Source Index 需要它（用法是现算的，不是组装结果里的字段）。 */
+  data: ResearchData
   onSubmitDisposition: (
     tensionId: string,
     resolution: TensionResolution,
@@ -69,6 +86,14 @@ export function ArgumentChain({
     decision: ReviewerDecision,
     reason: string,
   ) => { ok: true } | { ok: false; issues: DispositionIssue[] }
+  onCreateLink: (input: {
+    claimId: string
+    passageId: string
+    stance: string
+    note: string
+  }) =>
+    | { ok: true; stanceLabel: string; claimLabel: string; closedTensions: ClosedTension[] }
+    | { ok: false; issues: DispositionIssue[] }
 }) {
   /* 被 rail 指到的论断。它是**界面状态**，不是数据——所以它活在这里，
      不进 domain，也不进 projection。 */
@@ -117,6 +142,25 @@ export function ArgumentChain({
       block: "center",
     })
   }
+
+  /* 哪一个次要视图（材料 / 轨迹）开着。两个抽屉共用同一个状态槽——
+     它们是**互斥**的：同时开着两个模态会让 Escape 与焦点归还都变得不确定。 */
+  const [view, setView] = useState<SecondaryView | null>(null)
+
+  /** 论断 id → 「论断 N」。与 rail 用同一份措辞，不另造一套。 */
+  const claimLabelFor = (claimId: string): string => {
+    const index = chain.claimIndex.get(claimId)
+    return index ? t.claimLabel(index) : claimId
+  }
+
+  /* 材料份数与轨迹条数：入口上的两个读数。它们必须来自数据本身，
+     否则会和抽屉里的数对不上。 */
+  const sourceCount = data.sources.length
+  const traceCount = data.trace.length
+
+  /* 交付物地址。由研究 id 拼出——**不在组件里写死路由字符串**，
+     因为这一屏已经知道自己属于哪一项研究。 */
+  const findingHref = `/r/${data.research.id}/finding`
 
   return (
     <div className="rs-body">
@@ -212,6 +256,10 @@ export function ArgumentChain({
         openPanelId={railPanelId}
         onOpenPanel={(tensionId) => openDisposition(tensionId, "rail")}
         onClosePanel={closeDisposition}
+        sourceCount={sourceCount}
+        traceCount={traceCount}
+        findingHref={findingHref}
+        onOpenView={setView}
       />
 
       {/* 移动端底部清单。桌面不渲染（CSS 隐藏，且里面没有可聚焦元素被藏起来
@@ -223,7 +271,49 @@ export function ArgumentChain({
         openPanelId={sheetPanelId}
         onOpenPanel={(tensionId) => openDisposition(tensionId, "sheet")}
         onClosePanel={closeDisposition}
+        sourceCount={sourceCount}
+        traceCount={traceCount}
+        findingHref={findingHref}
+        onOpenView={setView}
       />
+
+      {/* ---- Source Index / Trace ----
+          它们挂在**链条根节点**下，不在 rail 或 dock 里面。理由很具体：
+          `.rs-rail-dock` 在桌面是 `display:none`，抽屉若住在里面就根本不存在；
+          而它们两种视口下都要有。`variant="responsive"` 让同一个组件在窄屏是
+          底部抽屉、宽屏是右侧边抽屉——定位交给 CSS 媒体查询，所以这里没有
+          `matchMedia`，也不可能产生 hydration 不一致。
+
+          两者互斥（`view` 只有一个槽），所以不可能同时叠两个模态。 */}
+      {view === "sources" ? (
+        <BottomSheet
+          labelId={SOURCE_SHEET_TITLE_ID}
+          title={ts.title}
+          variant="responsive"
+          testId="source-sheet"
+          onClose={() => setView(null)}
+        >
+          <SourceIndex
+            data={data}
+            claimLabelFor={claimLabelFor}
+            claimIndexFor={(claimId) => chain.claimIndex.get(claimId)}
+            onCreateLink={onCreateLink}
+            onSubmitDisposition={onSubmitDisposition}
+          />
+        </BottomSheet>
+      ) : null}
+
+      {view === "trace" ? (
+        <BottomSheet
+          labelId={TRACE_SHEET_TITLE_ID}
+          title={tt.title}
+          variant="responsive"
+          testId="trace-sheet"
+          onClose={() => setView(null)}
+        >
+          <TraceDrawer data={data} />
+        </BottomSheet>
+      ) : null}
 
       {/* ---- Class 3 建议 + 历史投影 ----
           刻意放在**链条之外、窄带之外**的底部：建议按契约没有靶心，

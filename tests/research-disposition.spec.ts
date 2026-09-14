@@ -708,20 +708,64 @@ test.describe("7 · 组装层", () => {
     }
   })
 
-  test("三个状态互不重叠，且合起来等于全部张力", () => {
+  test("三个状态互不重叠，且每条张力与每条处置都恰好落在一个桶里", () => {
+    /**
+     * ⚠ 这条断言在 Phase G+H 被重写过，理由是一个**真实的投影缺陷**。
+     *
+     * Phase E 的写法是「三桶合起来 == `projectTensions` 的全部张力」，
+     * 而 `projectTensions` 只遍历 `deriveTensions`。那个写法**恒为真但毫无意义**：
+     * `resolved` 的前提就是事实改变（不变量 13），事实一变那条张力就再也
+     * 推导不出来，所以「已解决」那一桶**按构造永远是空的**——
+     * 旧的断言恰恰因为它只数「派生的张力」而看不见这件事。
+     *
+     * 现在 `resolvedTensions` 与 `limitations` 都从 **dispositions** 出发。
+     * 于是正确的说法变成两条：
+     *
+     *   ① 三桶互不重叠（同一个 tensionId 只能处于一个状态）
+     *   ② **每条派生张力**恰好在一桶里；**每条处置**恰好在一桶里
+     *
+     * ② 的两个方向都必须查：只查「派生张力都归了桶」会漏掉
+     * 「有一条处置谁也对不上」（那会让一个已经做出的判断从界面上消失，
+     * 而数据里它还在），只查「处置都归了桶」会漏掉「有一条张力没人管」。
+     */
     const tensions = projectTensions(loadBearingResearch)
     const openIds = new Set(chain.openTensions.map((tension) => tension.id))
-    const resolvedIds = new Set(chain.resolvedTensions.map((tension) => tension.id))
+    const resolvedIds = new Set(chain.resolvedTensions.map((tension) => tension.tensionId))
     const limitationIds = new Set(chain.limitations.map((limitation) => limitation.tensionId))
 
-    for (const id of openIds) {
-      expect(resolvedIds.has(id)).toBe(false)
-      expect(limitationIds.has(id)).toBe(false)
+    const bucketsOf = (id: string) => [openIds.has(id), resolvedIds.has(id), limitationIds.has(id)]
+
+    for (const id of [...openIds, ...resolvedIds, ...limitationIds]) {
+      expect(bucketsOf(id).filter(Boolean).length, `${id} 落在多个桶里`).toBe(1)
     }
-    // 每个张力要么未处理，要么被处置成两种出口之一。
+
+    // ① 每条派生张力恰好在一桶里。
     for (const tension of tensions) {
-      const buckets = [openIds.has(tension.id), resolvedIds.has(tension.id), limitationIds.has(tension.id)]
-      expect(buckets.filter(Boolean).length, `${tension.id} 落在 ${buckets} 个桶里`).toBe(1)
+      expect(bucketsOf(tension.id).filter(Boolean).length, `${tension.id} 没有落在任何桶里`).toBe(1)
+    }
+
+    // ② 每条处置恰好在一桶里。
+    for (const disposition of loadBearingResearch.dispositions) {
+      expect(
+        bucketsOf(disposition.tensionId).filter(Boolean).length,
+        `处置 ${disposition.tensionId} 没有落在任何桶里`,
+      ).toBe(1)
+    }
+
+    /**
+     * ③ 一条**已解决**的张力必须不再被推导出来，且事实必须真的不在。
+     *
+     * 这是 `resolved` 的定义在投影侧的落点（不变量 13）。夹具里目前
+     * 有 0 条 resolved，所以循环体一次都不跑——它真正被跑到的场景在
+     * `tests/research-sources.spec.ts` 的「resolved 第一次真实可达」那一组，
+     * 那里走的是真实操作路径（补一条引用 → 张力消失 → 标记为已解决）。
+     */
+    for (const resolved of chain.resolvedTensions) {
+      expect(
+        tensions.some((tension) => tension.id === resolved.tensionId),
+        `${resolved.tensionId} 已解决，却仍然被推导出来`,
+      ).toBe(false)
+      expect(resolved.stillRaised, `${resolved.tensionId} 已解决，事实却还在`).toBe(false)
     }
   })
 

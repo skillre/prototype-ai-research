@@ -855,6 +855,225 @@ export const zhCN = {
       collapseHint: "收起原文",
     },
 
+    /**
+     * Source Index 与 Trace 的入口（窄带底部），以及它们共用的框架词。
+     *
+     * ⚠ 入口**只有这一处**。材料与轨迹是次要视图，不给它们第二个同等入口——
+     * 那会让首屏出现两条互相竞争的「另一个地方」。
+     */
+    materials: {
+      /** 窄带底部的入口。数字是材料份数，不是待办数。 */
+      sourcesAction: (n: number) => `材料 ${n} 份`,
+      traceAction: "研究轨迹",
+    },
+
+    /** Source Index —— 「我还有哪些材料，以及它们被怎么用」。 */
+    sources: {
+      title: "材料",
+      subtitle: "我手上有什么，以及它们被用在哪里。",
+      close: "收起材料",
+      empty: "还没有任何材料。",
+      /** 来源当前是否仍然可查。与 domain 的 `SourceValidity` 一一对应。 */
+      validity: {
+        ok: "可核对",
+        stale: "已失效",
+        missing: "找不到",
+      },
+      /**
+       * 来源的**性质**。它是可信度判断的唯一依据。
+       * 与 domain 的 `SourceType` 一一对应——注意它与上面的 `validity`
+       * 是两件不同的事：一份「性质是一手」的材料完全可以「已经失效」。
+       */
+      sourceType: {
+        primary: "一手",
+        secondary: "二手",
+        tertiary: "三手",
+        unknown: "性质不明",
+      },
+      /** 材料的载体形态。与 domain 的 `SourceKind` 一一对应。 */
+      kind: {
+        pdf: "PDF",
+        web: "网页",
+        transcript: "转写",
+        dataset: "数据集",
+        note: "笔记",
+      },
+      /** 这份材料被多少条**论断**用过（去重后）。 */
+      usedByClaims: (n: number) => `被 ${n} 条论断使用`,
+      /** 活跃引用数。停用的不算。 */
+      activeLinks: (n: number) => `${n} 处活跃引用`,
+      passageCount: (n: number) => `${n} 段原文`,
+      /** 一段都没被引用过的片段。 */
+      unusedPassages: (n: number) => `${n} 段未被引用`,
+      noUsage: "尚未被任何论断引用",
+      passagesEmpty: "这份材料还没有被切分成原文片段。",
+      /** 一段原文下面的用法列表。 */
+      usageOn: (claim: string) => `用在 ${claim}`,
+      retired: "已停用",
+      /** 「补充一条引用」——本阶段唯一改变事实的入口。 */
+      linkAction: "关联到论断",
+      linkFormTitle: "把这段原文关联到一条论断",
+      linkClaimLabel: "论断",
+      linkStanceLabel: "关系",
+      linkNoteLabel: "理由",
+      linkNotePlaceholder: "为什么这样关联（可留空；「反驳」类建议写）",
+      linkSubmit: "建立引用",
+      linkCancel: "取消",
+      /** 已经用过的关系。同一条重复建立会被领域层拒绝，所以先说清楚。 */
+      linkExisting: "已有",
+      linkNoCandidates: "没有可以承接这段原文的活跃论断。",
+      linkRejectedTitle: "这条引用没有被建立",
+      linkAcceptedTitle: "已建立引用",
+      /** 关系词按契约取，不在这里再写一份四个分支。 */
+      linkAcceptedBody: (stance: string, claim: string) => `${stance} · ${claim}`,
+      /**
+       * 收尾：这次写入关掉了哪些缺口。
+       *
+       * 这是 `resolved` **唯一可达**的地方——缺口一不再成立，rail 里那一行
+       * 连同它的「处理」按钮就一起消失了。所以这段文案要把那件事说清楚：
+       * 不记下来，它不会自己变成「已解决」。
+       */
+      closedTitle: "这次引用让一条缺口不再成立",
+      closedNote: "事实已经变了，所以现在可以把它标记为已解决。不记下来，它不会自己成为「已解决」。",
+      resolveShort: "标记为已解决",
+      closedDone: "已记录为已解决",
+    },
+
+    /** Trace —— 「为什么这么判断」，不是 activity feed。 */
+    trace: {
+      title: "研究轨迹",
+      subtitle: "这里记的是「为什么这么判断」，不是操作日志。",
+      close: "收起轨迹",
+      empty: "还没有任何记录。",
+      count: (n: number) => `${n} 条记录`,
+      /** 涉及多少个不同的对象。它让「这条论断被改过几次」有一个全局读数。 */
+      subjects: (n: number) => `${n} 个对象`,
+      /** 事件类型 → 界面词。与 domain 的 `TraceKind` 一一对应。 */
+      kind: {
+        "claim-created": "建立论断",
+        "claim-retracted": "撤回论断",
+        "link-created": "加入引用",
+        "link-retired": "停用引用",
+        "tension-dispositioned": "处置缺口",
+        "ai-output-rejected": "驳回 AI 输出",
+        "ai-output-accepted": "采纳 AI 输出",
+      },
+      /** 谁。与 domain 的 `Actor` 一一对应。 */
+      actor: {
+        human: "研究者",
+        "reviewer-ai": "审稿人",
+      },
+      /**
+       * 处置的两个出口在轨迹里的说法。
+       *
+       * ⚠ 它们**必须**是两个词。轨迹是读者事后追问「这个局限什么时候被接受的」
+       * 时唯一能看的地方——在那里写成「已处理」，等于让这条追问失去答案。
+       */
+      resolution: {
+        resolved: "标记为已解决",
+        "accepted-as-limitation": "接受为已知局限",
+        /** 认不出前缀的手写轨迹条目。读不懂不等于要丢掉它。 */
+        unknown: "处置",
+      },
+      /** 五要素的字段标签：谁 / 什么时候 / 对什么 / 做了什么 / 为什么。 */
+      actorLabel: "谁",
+      atLabel: "什么时候",
+      subjectLabel: "对什么",
+      kindLabel: "做了什么",
+      reasonLabel: "为什么",
+      /** 对象解析不出来时的兜底。它必须看起来像「查不到」，不像「没什么」。 */
+      subjectMissing: "对象已不存在",
+      /** 一条引用在轨迹里要能看出两端，而不是只有一个 id。 */
+      linkSubject: (stance: string) => `${stance}引用`,
+    },
+
+    /** Finding —— 交付物。稳定、可分享、可引用。 */
+    finding: {
+      meta: {
+        titleFallback: "研究结论",
+        description: "一份可引用的研究结论：它依据哪些论断、引用了哪些原文、以及它不覆盖什么。",
+      },
+      /** 它是什么。第一眼就要说清，否则会被当成又一个 summary 页。 */
+      eyebrow: "交付物",
+      heading: "结论",
+      /** 交付物宣言。一句话说清这一页与工作区的区别。 */
+      note: "这一页是定稿的措辞，不是工作区的实时视图。",
+      questionLabel: "研究问题",
+      scopeLabel: "研究范围",
+      scopeIn: "范围内",
+      scopeOut: "范围外",
+
+      confidenceLabel: "证据强度",
+      /** 读数旁边的上限。两个数并排，读者自己就能看出有没有越界。 */
+      ceilingLabel: (n: number) => `上限 ${n}`,
+      /** 上限是怎么来的。 */
+      ceilingNote: "结论的强度不可能超过它最薄弱的一环。",
+      /** 契约失败。**不静默修正，明说。** */
+      contractFailureTitle: "这份交付物与它的材料对不上",
+      contractFailure: (declared: number, ceiling: number) =>
+        `交付物声称证据强度 ${declared}，但它引用的论断里最弱的一条只到 ${ceiling}。`,
+      contractFailureWeakest: (claim: string) => `拖低它的正是 ${claim}。`,
+      contractFailureAction: "在交付物里把强度改到上限以内，或者去补上那条最弱的论断。",
+
+      claimsLabel: "依据的论断",
+      /** 通用数量词。论断数、引文数、边界数都用它——同一个数量词不该有三份。 */
+      count: (n: number) => `${n} 条`,
+      /** 拖低置信度的那一条在界面上要被指出来。 */
+      weakestLabel: "最弱的一环",
+
+      citationsLabel: "引用",
+      citationsCount: (n: number) => `${n} 条`,
+      /** 引用的落点是原文片段，不是来源——所以这一段必须显示 locator。 */
+      /** 来源已失效的引用。**标出来，不藏起来**：它仍然是引用，只是不能算数。 */
+      unverifiable: "不可核对",
+      unverifiableCount: (n: number) => `${n} 条引用不可核对`,
+      sourceMissing: "来源无法解析",
+
+      /** 已知局限。它与「已解决」**必须一眼不同**。 */
+      limitationsLabel: "已知局限",
+      limitationsNote: "这些边界仍然存在。它们不是「已解决」，也不是「已完成」。",
+      limitationTracked: "对应工作区里一条已接受的局限",
+      limitationHandwritten: "手写的边界",
+      /** ref 有、但事实已经变了。交付物在夸大一条限制。 */
+      limitationOverstated: "⚠ 这条边界对应的缺口已经被填上了——交付物在这里夸大了限制。",
+      /** ref 指向一条查不到的处置记录。 */
+      limitationDangling: "⚠ 这条边界声称对应一条处置记录，但那条记录不存在。",
+
+      /** 已接受、但还没写进交付物。 */
+      candidatesLabel: "已接受、但还没写进交付物",
+      candidatesNote:
+        "下面这些边界在工作区里已经接受了，但交付物里还没有对应的话。候选措辞只是原料——写哪一句由你决定。",
+      candidateFrom: (kind: string, claim: string) => `${kind} · ${claim}`,
+      candidateWording: (reason: string) => `候选措辞：「${reason}」`,
+      /** 全部写完时的状态。它必须是一句**真话**，不是一句鼓励。 */
+      candidatesNone: "工作区里已接受的局限都已经写进了交付物。",
+      /** 已经解决的洞。与已知局限分开，且**方向相反**。 */
+      resolvedLabel: "已解决",
+      resolvedCount: (n: number) => `${n} 项`,
+      resolvedNote: "这些洞是被事实填上的，与上面的已知局限是两件不同的事。",
+
+      /** AI 抽取的事实：只有它可能成为材料候补。 */
+      aiLabel: "可作材料的 AI 抽取事实",
+      aiNote: "只有带原文出处的抽取结果才可能成为材料。建议永远不会出现在这里。",
+      /** 被挡在外面的建议。**计数在这里、文本不在**。 */
+      aiExcluded: (n: number) => `${n} 条 AI 建议没有、也不会进入这份交付物。`,
+      aiSources: (n: number) => `${n} 段原文`,
+
+      /** 定稿这一刻仍然未处理的缺口。 */
+      openLabel: "定稿时仍未处理的缺口",
+      openCount: (n: number) => `${n} 项`,
+      openNote: "它们没有被写进结论的正文，但读者应该知道它们存在。",
+      openNone: "定稿时没有未处理的缺口。",
+
+      /** 交付物的两个信封字段：定稿时间与研究状态。 */
+      generatedAt: (date: string) => `${date} 定稿`,
+      researchState: {
+        active: "研究中",
+        archived: "已归档",
+      },
+      backToWorkspace: "回到研究现场",
+    },
+
     /** 找不到这项研究时的兜底。**不给死胡同**——下面是真实可用的入口。 */
     notFound: {
       metaTitle: "找不到这项研究",

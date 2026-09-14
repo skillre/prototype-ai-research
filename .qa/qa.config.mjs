@@ -54,9 +54,14 @@ export const routes = null
  * `dynamicParams = false` — so there is exactly one valid value. It is written
  * in three places on purpose (dataset, `generateStaticParams`, here); a fourth
  * copy is what would drift.
+ *
+ * `/r/[researchId]/finding` is the deliverable. It is a **nested** dynamic
+ * segment, so it needs its own entry: the walk sees `finding/` under a dynamic
+ * directory and cannot resolve the parent either.
+ *
  * @type {string[]}
  */
-export const extraRoutes = ["/r/res-load-bearing"]
+export const extraRoutes = ["/r/res-load-bearing", "/r/res-load-bearing/finding"]
 
 /** Routes deliberately excluded from the sweep (e.g. heavy paywalls, redirects). */
 /** @type {string[]} */

@@ -21,7 +21,7 @@ import type { ResearchAnchor } from "@/lib/research-ui"
 const t = messages.research.head
 
 export function ResearchRunningHead({ anchor }: { anchor: ResearchAnchor }) {
-  const hasOpen = anchor.openTensionCount > 0
+  const hasOpen = anchor.disposal.open > 0
 
   return (
     <header className="rs-running-head">
@@ -55,7 +55,7 @@ export function ResearchRunningHead({ anchor }: { anchor: ResearchAnchor }) {
         <p className={`rs-tally kits-label${hasOpen ? "" : " rs-tally--empty"}`}>
           <span>{t.openTensions}</span>
           <span className="numeric">
-            {hasOpen ? anchor.openTensionCount : t.openTensionsNone}
+            {hasOpen ? anchor.disposal.open : t.openTensionsNone}
           </span>
           {hasOpen ? <span>{t.openTensionsUnit}</span> : null}
         </p>

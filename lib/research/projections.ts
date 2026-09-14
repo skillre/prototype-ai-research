@@ -9,6 +9,7 @@
  */
 
 import type {
+  AiOutput,
   Claim,
   ClaimBasisStatus,
   EvidenceLevel,
@@ -73,6 +74,22 @@ export function getSource(data: ResearchData, sourceId: Id): Source | undefined 
 
 export function getLink(data: ResearchData, linkId: Id): EvidenceLink | undefined {
   return data.links.find((link) => link.id === linkId)
+}
+
+/**
+ * 一条 AI 输出。
+ *
+ * 需要它是因为轨迹（Phase G+H）必须回答「这条 AI 意见为什么被驳回」——
+ * 而轨迹条目只存了 id 与那个输出无关的理由。没有这个访问器，界面上
+ * 那条记录就只剩一串 id。
+ */
+export function getAiOutput(data: ResearchData, outputId: Id): AiOutput | undefined {
+  return data.aiOutputs.find((output) => output.id === outputId)
+}
+
+/** 一份交付物。 */
+export function getFinding(data: ResearchData, findingId: Id): Finding | undefined {
+  return data.findings.find((finding) => finding.id === findingId)
 }
 
 /**

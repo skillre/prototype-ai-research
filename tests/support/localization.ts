@@ -37,10 +37,15 @@ export const ALLOWED_ENGLISH: RegExp[] = [
 /**
  * 需要做「零英文」检查的页面。
  *
- * 只登记**真实存在**的页面：落地页、Factory 内置演示、研究工作区。
+ * 只登记**真实存在**的页面：落地页、Factory 内置演示、研究工作区、交付物。
  * 不预先登记尚未实现的路由——那会让这个 spec 在页面上线前就假绿。
  */
-export const LOCALIZED_ROUTES = ["/", "/demo", "/r/res-load-bearing"] as const
+export const LOCALIZED_ROUTES = [
+  "/",
+  "/demo",
+  "/r/res-load-bearing",
+  "/r/res-load-bearing/finding",
+] as const
 
 /**
  * 采集当前视口内所有可见文本节点。

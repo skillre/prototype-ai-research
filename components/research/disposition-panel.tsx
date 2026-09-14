@@ -59,6 +59,19 @@ export function DispositionPanel({
   /** 面板自己的标题。放进抽屉时关掉——抽屉已经有标题了，
    *  同一屏上把同一句话写两遍是最容易被忽略的那种冗余。 */
   showTitle = true,
+  /**
+   * 默认选中的出口。默认是 `accepted-as-limitation`。
+   *
+   * ## 什么时候应该换成 `resolved`
+   *
+   * 只有一种情形：**刚刚发生了事实改变**。Source Index 里补完一条引用之后，
+   * 面板是被这次操作本身叫出来的（见 `addEvidenceLink` 的 `closedTensions`），
+   * 那时 `resolved` 是**唯一成立**的出口，把它设为默认是诚实的。
+   *
+   * 其余任何地方都必须保持 `accepted-as-limitation` 为默认——
+   * 默认值就是一种推荐，而界面不该把用户往「声称自己解决了」那边推。
+   */
+  defaultResolution = "accepted-as-limitation",
   onSubmit,
   onClose,
 }: {
@@ -70,6 +83,7 @@ export function DispositionPanel({
   /** 已知局限的默认理由（若这条缺口已经有处置历史）。 */
   reasonHint?: string
   showTitle?: boolean
+  defaultResolution?: TensionResolution
   onSubmit: DispositionSubmit
   onClose: () => void
 }) {
@@ -78,8 +92,7 @@ export function DispositionPanel({
   const acceptId = `${idPrefix}-accept`
   const describedBy = `${idPrefix}-distinction`
 
-  /* 默认选「接受为已知局限」。默认值就是推荐——见文件头。 */
-  const [resolution, setResolution] = useState<TensionResolution>("accepted-as-limitation")
+  const [resolution, setResolution] = useState<TensionResolution>(defaultResolution)
   const [reason, setReason] = useState(reasonHint ?? "")
   const [issues, setIssues] = useState<DispositionIssue[]>([])
   const reasonRef = useRef<HTMLTextAreaElement | null>(null)

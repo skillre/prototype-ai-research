@@ -36,6 +36,7 @@
  * 两者都有明确的可访问名，Tab 顺序就是 DOM 顺序。
  */
 
+import Link from "next/link"
 import { useState } from "react"
 import { messages } from "@/lib/i18n"
 import type { DispositionIssue, KnownLimitation, TensionResolution } from "@/lib/research"
@@ -45,6 +46,8 @@ import { DispositionPanel } from "./disposition-panel"
 
 const t = messages.research.rail
 const td = messages.research.disposition
+const tm = messages.research.materials
+const tf = messages.research.finding
 
 type Submit = (
   tensionId: string,
@@ -181,6 +184,10 @@ function TensionRailList({
   onOpenPanel,
   onClosePanel,
   onSubmit,
+  sourceCount,
+  traceCount,
+  findingHref,
+  onOpenView,
   idPrefix,
 }: {
   chain: ArgumentChain
@@ -189,6 +196,10 @@ function TensionRailList({
   onOpenPanel: (tensionId: string) => void
   onClosePanel: () => void
   onSubmit: Submit
+  sourceCount: number
+  traceCount: number
+  findingHref: string
+  onOpenView: (view: "sources" | "trace") => void
   idPrefix: string
 }) {
   return (
@@ -249,20 +260,112 @@ function TensionRailList({
           </p>
           <ul className="rs-rail__list" aria-labelledby={`${idPrefix}-resolved`}>
             {chain.resolvedTensions.map((tension) => {
-              const index = chain.claimIndex.get(tension.subject.claimId)
+              const index = chain.claimIndex.get(tension.claimId)
               return (
-                <li key={tension.id} className="rs-rail__resolved" data-resolved-id={tension.id}>
-                  <span className="rs-rail__resolved-text">
-                    {tension.kind in KIND_LABEL ? KIND_LABEL[tension.kind as keyof typeof KIND_LABEL] : tension.kind}
-                  </span>
+                <li
+                  key={tension.tensionId}
+                  className="rs-rail__resolved"
+                  data-resolved-id={tension.tensionId}
+                  /* 事实若后来又被推翻（证据被停用），这条「已解决」就变成历史。
+                     与局限那一段用同一个字段、**相反的方向**——这是两个出口
+                     唯一的结构性差异，所以它必须在 DOM 上可读。 */
+                  data-resolved-raised={tension.stillRaised ? "true" : "false"}
+                >
+                  <span className="rs-rail__resolved-text">{KIND_LABEL[tension.kind]}</span>
                   {index ? <span className="rs-rail__meta">{t.subjectClaim(index)}</span> : null}
+                  {tension.stillRaised ? (
+                    <span className="rs-rail__meta" data-testid={`resolved-reopened-${tension.tensionId}`}>
+                      {td.noLongerRaised}
+                    </span>
+                  ) : null}
                 </li>
               )
             })}
           </ul>
         </>
       ) : null}
+
+      {/* 次要视图入口。**始终存在**（即使没有未处理项），因为「我还有哪些材料」
+          与研究状态无关——材料不会因为缺口都被处理完就消失。 */}
+      <RailFooter
+        sourceCount={sourceCount}
+        traceCount={traceCount}
+        findingHref={findingHref}
+        onOpenView={onOpenView}
+        idPrefix={idPrefix}
+      />
     </>
+  )
+}
+
+/**
+ * 窄带底部的次要视图入口。
+ *
+ * ## 为什么只有这一处
+ *
+ * §16 要求 Trace「不要多个同等入口抢视觉」，而 Phase D 有一条测试断言
+ * Running Head 里没有任何链接（`head.locator("a, nav").count() === 0`）——
+ * 那条断言防的是「Running Head 长成 TopNav」。所以入口放在这里，
+ * **一处、三个**，而不是散到页面各处去。
+ *
+ * 桌面窄带与移动端抽屉面板共用它——它们是**同一个入口的两个位置**，
+ * 同一时刻只有一个可见，所以不存在「两个同等入口」。
+ *
+ * ## 三个入口的权重不同，而且这是刻意的
+ *
+ * ```
+ * 结论 →      交付物。**最重**：它是这项研究的产物，也是唯一一个
+ *             稳定、可分享、可引用的地址。
+ * 材料 N 份    工作区的一个次要视图。
+ * 研究轨迹 N   同上。
+ * ```
+ *
+ * 三个都一样重会让「结论」看起来只是第三个小工具，而这个产品要说的
+ * 恰恰是反过来的：论证是过程，结论是产物。
+ */
+function RailFooter({
+  sourceCount,
+  traceCount,
+  findingHref,
+  onOpenView,
+  idPrefix,
+}: {
+  sourceCount: number
+  traceCount: number
+  findingHref: string
+  onOpenView: (view: "sources" | "trace") => void
+  idPrefix: string
+}) {
+  return (
+    <footer className="rs-rail__footer" data-testid={`${idPrefix}-footer`}>
+      <Link className="rs-rail__deliverable kits-control" data-testid="open-finding" href={findingHref}>
+        <span className="kits-label">{tf.eyebrow}</span>
+        <span>{tf.heading}</span>
+        <span aria-hidden className="rs-rail__deliverable-arrow">
+          →
+        </span>
+      </Link>
+
+      <div className="rs-rail__foot-row">
+        <button
+          type="button"
+          className="rs-rail__foot-action kits-control"
+          data-testid="open-source-index"
+          onClick={() => onOpenView("sources")}
+        >
+          {tm.sourcesAction(sourceCount)}
+        </button>
+        <button
+          type="button"
+          className="rs-rail__foot-action kits-control"
+          data-testid="open-trace"
+          onClick={() => onOpenView("trace")}
+        >
+          {tm.traceAction}
+          <span className="rs-rail__foot-count numeric">{traceCount}</span>
+        </button>
+      </div>
+    </footer>
   )
 }
 
@@ -274,6 +377,10 @@ export function TensionRail({
   openPanelId,
   onOpenPanel,
   onClosePanel,
+  sourceCount,
+  traceCount,
+  findingHref,
+  onOpenView,
 }: {
   chain: ArgumentChain
   onGoToClaim: (claimId: string) => void
@@ -284,6 +391,11 @@ export function TensionRail({
   openPanelId: string | null
   onOpenPanel: (tensionId: string) => void
   onClosePanel: () => void
+  sourceCount: number
+  traceCount: number
+  /** 交付物地址。入口与「材料 / 轨迹」同处，但权重不同。 */
+  findingHref: string
+  onOpenView: (view: "sources" | "trace") => void
 }) {
   return (
     <aside className="rs-rail-desktop" aria-labelledby="rs-rail-heading">
@@ -303,6 +415,10 @@ export function TensionRail({
           onOpenPanel={onOpenPanel}
           onClosePanel={onClosePanel}
           onSubmit={onSubmit}
+          sourceCount={sourceCount}
+          traceCount={traceCount}
+          findingHref={findingHref}
+          onOpenView={onOpenView}
           idPrefix="rs-rail-inline"
         />
       </div>
@@ -323,6 +439,10 @@ export function TensionRailDock({
   openPanelId,
   onOpenPanel,
   onClosePanel,
+  sourceCount,
+  traceCount,
+  findingHref,
+  onOpenView,
 }: {
   chain: ArgumentChain
   onGoToClaim: (claimId: string) => void
@@ -330,6 +450,11 @@ export function TensionRailDock({
   openPanelId: string | null
   onOpenPanel: (tensionId: string) => void
   onClosePanel: () => void
+  sourceCount: number
+  traceCount: number
+  /** 交付物地址。入口与「材料 / 轨迹」同处，但权重不同。 */
+  findingHref: string
+  onOpenView: (view: "sources" | "trace") => void
 }) {
   const [listOpen, setListOpen] = useState(false)
 
@@ -367,6 +492,15 @@ export function TensionRailDock({
             onOpenPanel={onOpenPanel}
             onClosePanel={onClosePanel}
             onSubmit={onSubmit}
+            sourceCount={sourceCount}
+            traceCount={traceCount}
+            findingHref={findingHref}
+            /* 刻意**不**在这里收起清单。
+               收起来会把触发按钮从文档里卸载掉，而抽屉关闭时要把焦点还给它
+               （`BottomSheet` 的职责 ④）——还焦点到一个已经不在文档里的元素
+               是个静默失败：焦点掉到 body，键盘用户被丢回页面顶部。
+               抽屉是模态的、带遮罩，所以清单留在后面不构成「两层叠着」的视觉问题。 */
+            onOpenView={onOpenView}
             idPrefix="rs-rail-dock"
           />
         </div>
@@ -374,7 +508,12 @@ export function TensionRailDock({
 
       {/* 处置抽屉。条件渲染 + 模态：关闭时它不留在可聚焦树里。 */}
       {panelTension ? (
-        <BottomSheet labelId={SHEET_TITLE_ID} title={td.panelTitle} onClose={onClosePanel}>
+        <BottomSheet
+          labelId={SHEET_TITLE_ID}
+          title={td.panelTitle}
+          onClose={onClosePanel}
+          testId="disposition-sheet"
+        >
           <DispositionPanel
             idPrefix="rs-sheet"
             showTitle={false}

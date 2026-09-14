@@ -2066,3 +2066,1040 @@
   letter-spacing: var(--kits-label-tracking);
   color: var(--kits-color-ink-muted);
 }
+
+/* =============================================================================
+ * §7 · Source Index / Trace / Finding（Phase G+H）
+ *
+ * 三个新表面，一条共同的层级规则：
+ *
+ * ```
+ * 缺口（第一视觉）    --kits-color-ink-muted      最重
+ * 论断面板            --kits-color-rule-strong
+ * 次要视图的内容      --kits-color-rule           最轻
+ * ```
+ *
+ * 次要视图**没有一样东西**可以比缺口重。它们回答的是「我手上有什么」
+ * 与「我是怎么走到这里的」——两件都是**支持性**的事，把它们做得更响
+ * 会让这一屏从「论证有洞」变成「资料管理」。
+ * ========================================================================== */
+
+/* -----------------------------------------------------------------------------
+ * §7a · 窄带底部的入口
+ * -------------------------------------------------------------------------- */
+
+.rs-rail__footer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--kits-space-xs);
+  margin-block-start: var(--kits-space-md);
+  padding-block-start: var(--kits-space-sm);
+  border-block-start: var(--kits-border-width) var(--kits-border-style) var(--kits-color-rule);
+}
+
+/* 交付物入口。三个入口里**最重的那一个**：它是这项研究的产物，
+   而且是唯一一个稳定、可分享、可引用的地址。 */
+.rs-rail__deliverable {
+  display: flex;
+  align-items: baseline;
+  gap: var(--kits-space-xs);
+  padding-inline: var(--kits-space-xs);
+  border: var(--kits-border-width) var(--kits-border-style) var(--kits-color-accent);
+  border-radius: var(--kits-radius-control);
+  color: var(--kits-color-ink);
+  font-family: var(--kits-font-mono);
+  text-decoration: none;
+}
+
+.rs-rail__deliverable .kits-label {
+  color: var(--kits-color-accent);
+}
+
+.rs-rail__deliverable-arrow {
+  margin-inline-start: auto;
+  color: var(--kits-color-accent);
+}
+
+.rs-rail__foot-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--kits-space-2xs);
+}
+
+/* 两个次要视图。刻意做得**弱**：它们是工具，不是结论。 */
+.rs-rail__foot-action {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--kits-space-2xs);
+  border-color: transparent;
+  color: var(--kits-color-ink-muted);
+  font-family: var(--kits-font-mono);
+}
+
+.rs-rail__foot-count {
+  opacity: 0.72;
+}
+
+/* -----------------------------------------------------------------------------
+ * §7b · 抽屉的两种位置
+ *
+ * `variant="responsive"` 的抽屉在窄屏是底部抽屉、宽屏是右侧边抽屉。
+ * **定位交给媒体查询**，所以组件里没有 `matchMedia`，也不可能
+ * 产生 hydration 不一致（服务端与客户端渲染的是同一棵 DOM）。
+ * -------------------------------------------------------------------------- */
+
+.rs-sheet__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--kits-space-sm);
+  padding-inline: var(--kits-gutter);
+  border-block-end: var(--kits-border-width) var(--kits-border-style) var(--kits-color-rule);
+}
+
+/* 标题的左右内边距由 `.rs-sheet__head` 提供，避免两处各加一次。 */
+.rs-sheet__head .rs-sheet__title {
+  padding-inline: 0;
+}
+
+.rs-sheet__close {
+  flex: 0 0 auto;
+  margin-block: var(--kits-space-sm);
+}
+
+.rs-sheet__sub {
+  margin: 0;
+  padding: var(--kits-space-sm) calc(var(--kits-gutter) - var(--kits-space-2xs)) 0;
+  color: var(--kits-color-ink-muted);
+}
+
+@media (min-width: 1024px) {
+  .rs-sheet--responsive {
+    /* 贴右边，占满高度。`inset-inline: auto 0` 是关键的一行——
+       不写它，抽屉会从右侧**拉伸**到整屏宽，因为 `.rs-sheet` 的
+       `inset-inline: 0` 同时钉住了两端。 */
+    inset-inline: auto 0;
+    inset-block: 0;
+    inline-size: min(30rem, 92vw);
+    max-height: 100dvh;
+    overscroll-behavior: contain;
+    border-block-start: 0;
+    border-inline-start: var(--kits-border-width-strong) var(--kits-border-style)
+      var(--kits-color-rule-strong);
+  }
+}
+
+/* -----------------------------------------------------------------------------
+ * §7c · Source Index —— 按层展开，不是表格
+ *
+ * 三层：材料 → 原文片段 → 用法 / 关联。
+ * 一次只展开一层（组件只记一个 id），所以在 390px 下也不会变成
+ * 四列 micro text。
+ * -------------------------------------------------------------------------- */
+
+.rs-sources {
+  padding-block-end: var(--kits-space-md);
+}
+
+.rs-src-list,
+.rs-psg-list,
+.rs-psg__usages {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rs-src {
+  border-block-end: var(--kits-border-width) var(--kits-border-style) var(--kits-color-rule);
+}
+
+.rs-src[data-open="true"] {
+  background-color: var(--kits-color-surface);
+}
+
+.rs-src__head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--kits-space-2xs);
+  inline-size: 100%;
+  padding: var(--kits-space-sm) var(--kits-space-xs);
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.rs-src__title {
+  font-family: var(--kits-font-body);
+  font-size: var(--kits-body-size);
+  line-height: var(--kits-body-line);
+}
+
+.rs-src__meta,
+.rs-src__counts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--kits-space-2xs);
+  font-family: var(--kits-font-mono);
+  font-size: var(--kits-label-size);
+  letter-spacing: var(--kits-label-tracking);
+  color: var(--kits-color-ink-muted);
+}
+
+/* 「性质」是可信度判断的唯一依据，所以它比其余元数据重一档；
+   「有效性」在失效时用 negative。两者是**两件事**，所以各自上色。 */
+.rs-src__type {
+  color: var(--kits-color-ink);
+}
+
+.rs-src__type[data-source-type="tertiary"],
+.rs-src__type[data-source-type="unknown"] {
+  color: var(--kits-color-accent-2);
+}
+
+.rs-src__validity[data-validity="stale"],
+.rs-src__validity[data-validity="missing"] {
+  color: var(--kits-color-negative);
+}
+
+.rs-src__body {
+  padding-block-end: var(--kits-space-sm);
+}
+
+.rs-psg {
+  border-block-start: var(--kits-border-width) var(--kits-border-style) var(--kits-color-rule);
+}
+
+.rs-psg__head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--kits-space-2xs);
+  inline-size: 100%;
+  padding: var(--kits-space-xs) var(--kits-space-xs) var(--kits-space-xs) var(--kits-space-sm);
+  border: 0;
+  /* 缩进用一条左规则线表达，不是一个「缩进多少 px」的魔法数——
+     它与论断下证据的缩进阶梯是同一套语言。 */
+  border-inline-start: var(--kits-border-width) var(--kits-border-style)
+    var(--kits-color-rule-strong);
+  background: transparent;
+  color: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.rs-psg__text {
+  font-family: var(--kits-font-body);
+  font-size: var(--kits-body-size);
+  line-height: var(--kits-body-line);
+  text-wrap: pretty;
+}
+
+.rs-psg__body {
+  padding: 0 var(--kits-space-xs) var(--kits-space-sm) var(--kits-space-sm);
+  border-inline-start: var(--kits-border-width) var(--kits-border-style)
+    var(--kits-color-rule-strong);
+  margin-inline-start: 0;
+}
+
+.rs-psg__usages {
+  display: flex;
+  flex-direction: column;
+  gap: var(--kits-space-2xs);
+  margin-block-end: var(--kits-space-xs);
+}
+
+/* 一处用法：关系词 + 用到哪条论断。关系词**只**来自契约的 label。 */
+.rs-psg__usage {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--kits-space-2xs);
+  font-family: var(--kits-font-mono);
+  font-size: var(--kits-label-size);
+  letter-spacing: var(--kits-label-tracking);
+}
+
+/* 形状通道：与论证链里的证据用同一套 `data-form` 取值。
+   这里是**第二个**显示关系的地方，所以它必须长得像第一个。 */
+.rs-psg__usage-stance {
+  color: var(--kits-color-ink);
+}
+
+.rs-psg__usage-stance[data-form="reverse-arrow"] {
+  color: var(--kits-color-accent-2);
+}
+
+.rs-psg__usage-stance[data-form="recessed"] {
+  color: var(--kits-color-ink-muted);
+}
+
+.rs-psg__usage-claim,
+.rs-psg__none,
+.rs-psg__usage-retired {
+  color: var(--kits-color-ink-muted);
+}
+
+/* 已停用的用法：留着，但划掉。历史投影不是可以静默消失的东西。 */
+.rs-psg__usage[data-retired="true"] .rs-psg__usage-claim {
+  text-decoration: line-through;
+  text-decoration-color: var(--kits-color-rule-strong);
+}
+
+/* -----------------------------------------------------------------------------
+ * §7d · 关联表单（本阶段唯一改变事实的入口）
+ * -------------------------------------------------------------------------- */
+
+.rs-link {
+  display: flex;
+  flex-direction: column;
+  gap: var(--kits-space-xs);
+  margin-block-start: var(--kits-space-xs);
+  padding: var(--kits-space-sm);
+  border: var(--kits-border-width) var(--kits-border-style) var(--kits-color-rule-strong);
+  border-radius: var(--kits-radius-surface);
+  background-color: var(--kits-color-surface-raised);
+}
+
+.rs-link__title {
+  margin: 0;
+  color: var(--kits-color-ink-muted);
+}
+
+.rs-link__field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--kits-space-2xs);
+}
+
+.rs-link__field-label {
+  color: var(--kits-color-ink-muted);
+}
+
+.rs-link__select,
+.rs-link__note {
+  inline-size: 100%;
+  font-family: var(--kits-font-body);
+  font-size: var(--kits-body-size);
+  line-height: var(--kits-body-line);
+  color: var(--kits-color-ink);
+  background-color: var(--kits-color-canvas);
+}
+
+.rs-link__note {
+  resize: vertical;
+}
+
+.rs-link__stances {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--kits-space-sm);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.rs-link__stances .rs-link__field-label {
+  flex-basis: 100%;
+  margin-block-end: var(--kits-space-2xs);
+}
+
+.rs-link__stance {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--kits-space-2xs);
+  font-family: var(--kits-font-mono);
+  font-size: var(--kits-label-size);
+  cursor: pointer;
+}
+
+.rs-link__stance-existing {
+  color: var(--kits-color-ink-muted);
+}
+
+.rs-link__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--kits-space-xs);
+}
+
+.rs-link__empty {
+  margin: 0;
+  color: var(--kits-color-ink-muted);
+}
+
+.rs-link__ok,
+.rs-link__reject {
+  margin: 0;
+  font-size: var(--kits-label-size);
+}
+
+.rs-link__ok {
+  display: flex;
+  flex-direction: column;
+  gap: var(--kits-space-2xs);
+  color: var(--kits-color-positive);
+}
+
+.rs-link__reject {
+  padding-inline-start: var(--kits-space-sm);
+  border-inline-start: var(--kits-border-width-strong) var(--kits-border-style)
+    var(--kits-color-negative);
+}
+
+.rs-link__reject ul {
+  margin: var(--kits-space-2xs) 0 0;
+  padding-inline-start: var(--kits-space-md);
+}
+
+/* ---- 收尾：这次写入关掉了一个缺口 ----
+   它是 `resolved` 在界面上唯一可达的入口，所以它比表单里其余部分**重**：
+   一条实线左规则 + 一句说明，而不是一行安静的提示。 */
+.rs-link__closed {
+  padding: var(--kits-space-sm);
+  border-inline-start: var(--kits-border-width-strong) var(--kits-border-style)
+    var(--kits-color-positive);
+  background-color: var(--kits-color-surface);
+}
+
+.rs-link__closed-title {
+  margin: 0;
+  color: var(--kits-color-positive);
+}
+
+.rs-link__closed-note {
+  margin: var(--kits-space-2xs) 0 0;
+  color: var(--kits-color-ink-muted);
+  text-wrap: pretty;
+}
+
+.rs-link__closed-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--kits-space-sm);
+  margin: var(--kits-space-sm) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rs-link__closed-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--kits-space-xs);
+  align-items: flex-start;
+}
+
+.rs-link__closed-subject {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--kits-space-2xs);
+  margin: 0;
+  font-family: var(--kits-font-mono);
+  font-size: var(--kits-label-size);
+  letter-spacing: var(--kits-label-tracking);
+}
+
+.rs-link__closed-subject .kits-label {
+  color: var(--kits-color-ink-muted);
+}
+
+.rs-link__closed-done {
+  margin: 0;
+  font-family: var(--kits-font-mono);
+  font-size: var(--kits-label-size);
+  letter-spacing: var(--kits-label-tracking);
+  color: var(--kits-color-positive);
+}
+
+/* 收尾用的处置面板：它已经在一条左规则里面，所以不再画第二层。 */
+.rs-link__closed .rs-disposition {
+  margin: 0;
+  border-inline-start: 0;
+  background-color: transparent;
+}
+
+/* -----------------------------------------------------------------------------
+ * §7e · Trace —— 按对象分组，不是 activity feed
+ * -------------------------------------------------------------------------- */
+
+.rs-trace {
+  padding-block-end: var(--kits-space-md);
+}
+
+.rs-trace__summary {
+  display: flex;
+  gap: var(--kits-space-2xs);
+  margin: var(--kits-space-2xs) 0 0;
+  padding-inline: calc(var(--kits-gutter) - var(--kits-space-2xs));
+  color: var(--kits-color-ink-muted);
+}
+
+.rs-trace__groups,
+.rs-trace__rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rs-trace__group {
+  border-block-end: var(--kits-border-width) var(--kits-border-style) var(--kits-color-rule);
+}
+
+.rs-trace__group-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--kits-space-xs);
+  inline-size: 100%;
+  padding: var(--kits-space-sm) var(--kits-space-xs);
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+/* 分组标题就是**对象**。它比组内的记录重一档——
+   读者找的是「这条论断」，不是「第几条记录」。 */
+.rs-trace__group-label {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+  font-family: var(--kits-font-body);
+  font-size: var(--kits-body-size);
+  line-height: var(--kits-body-line);
+}
+
+.rs-trace__group-count {
+  flex: 0 0 auto;
+  color: var(--kits-color-ink-muted);
+}
+
+.rs-trace__row {
+  padding: var(--kits-space-xs) var(--kits-space-xs) var(--kits-space-sm)
+    var(--kits-space-sm);
+  border-inline-start: var(--kits-border-width) var(--kits-border-style)
+    var(--kits-color-rule-strong);
+}
+
+/* 改变了事实的记录（加入 / 停用引用）做得更重：读者最需要一眼看到的
+   是**论证什么时候被改动过**，而不是谁点了什么。 */
+.rs-trace__row[data-fact-changing="true"] {
+  border-inline-start-color: var(--kits-color-accent);
+}
+
+/* 对不上对象的记录必须看起来像坏了，不像空白。 */
+.rs-trace__row[data-dangling="true"] {
+  border-inline-start-color: var(--kits-color-negative);
+}
+
+.rs-trace__facts {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: var(--kits-space-2xs) var(--kits-space-sm);
+  margin: 0;
+}
+
+.rs-trace__facts dt {
+  color: var(--kits-color-ink-muted);
+}
+
+.rs-trace__facts dd {
+  margin: 0;
+}
+
+.rs-trace__resolution {
+  margin-inline-start: var(--kits-space-2xs);
+  padding-inline: var(--kits-space-2xs);
+  border: var(--kits-border-width) var(--kits-border-style) var(--kits-color-rule-strong);
+  border-radius: var(--kits-radius-control);
+  font-family: var(--kits-font-mono);
+  font-size: var(--kits-label-size);
+}
+
+/* 「为什么」是这一屏的**主体**，所以它比那四个字段重。 */
+.rs-trace__reason {
+  display: flex;
+  flex-direction: column;
+  gap: var(--kits-space-2xs);
+  margin: var(--kits-space-sm) 0 0;
+  padding-block-start: var(--kits-space-xs);
+  border-block-start: var(--kits-border-width) var(--kits-border-style)
+    var(--kits-color-rule);
+  font-family: var(--kits-font-body);
+  font-size: var(--kits-body-size);
+  line-height: var(--kits-body-line);
+  text-wrap: pretty;
+}
+
+.rs-trace__reason .kits-label {
+  color: var(--kits-color-ink-muted);
+}
+
+.rs-trace__empty,
+.rs-sources__empty {
+  margin: 0;
+  padding: var(--kits-space-sm) var(--kits-gutter);
+  color: var(--kits-color-ink-muted);
+}
+
+/* -----------------------------------------------------------------------------
+ * §7f · Finding —— 交付物
+ *
+ * 它是一份文档，不是一个 dashboard：没有卡片、没有网格、没有 KPI。
+ * 唯一的结构是**分节 + 一条 hairline**，读起来像一份被署名的结论。
+ * -------------------------------------------------------------------------- */
+
+.rs-finding {
+  gap: var(--kits-section-gap);
+  /* 交付物不用 `.rs-main` 的布局（那是链条的容器），所以它自己带内容宽度
+     与左右留白。两者都是 token，不是魔法数。 */
+  inline-size: 100%;
+  max-inline-size: var(--kits-content-max);
+  margin-inline: auto;
+  padding-inline: var(--kits-gutter);
+  padding-block-end: var(--kits-space-xl);
+}
+
+.rs-finding__head {
+  padding-block: var(--kits-space-lg) var(--kits-space-md);
+  border-block-end: var(--kits-border-width-strong) var(--kits-border-style)
+    var(--kits-color-rule-strong);
+  border-block-start: 0;
+}
+
+.rs-finding__title {
+  margin: var(--kits-space-xs) 0 var(--kits-space-xs);
+  font-family: var(--kits-font-display);
+  font-size: var(--text-title);
+  line-height: var(--kits-title-line);
+  letter-spacing: var(--kits-title-tracking);
+}
+
+.rs-finding__note {
+  margin: 0;
+  color: var(--kits-color-ink-muted);
+  text-wrap: pretty;
+}
+
+.rs-finding__envelope {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--kits-space-xs);
+  margin-block-start: var(--kits-space-sm);
+  color: var(--kits-color-ink-muted);
+}
+
+.rs-finding__section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--kits-space-xs);
+  padding-block: var(--kits-space-md);
+  border-block-end: var(--kits-border-width) var(--kits-border-style) var(--kits-color-rule);
+}
+
+.rs-finding__section h2 {
+  display: flex;
+  align-items: baseline;
+  gap: var(--kits-space-xs);
+  margin: 0;
+}
+
+.rs-finding__section h2 .kits-label {
+  color: var(--kits-color-ink-muted);
+}
+
+.rs-finding__sub {
+  flex-basis: 100%;
+  margin-block-start: var(--kits-space-sm);
+  color: var(--kits-color-ink-muted);
+}
+
+.rs-finding__question {
+  margin: 0;
+  font-family: var(--kits-font-body);
+  font-size: var(--text-subtitle);
+  line-height: var(--kits-title-line);
+}
+
+.rs-finding__scope {
+  display: flex;
+  flex-direction: column;
+  gap: var(--kits-space-2xs);
+}
+
+.rs-finding__scope-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--kits-space-xs);
+  margin: 0;
+}
+
+.rs-finding__scope-row .kits-label {
+  color: var(--kits-color-ink-muted);
+}
+
+.rs-finding__scope-item {
+  padding-inline: var(--kits-space-2xs);
+  border-inline-start: var(--kits-border-width) var(--kits-border-style)
+    var(--kits-color-rule-strong);
+  font-family: var(--kits-font-mono);
+  font-size: var(--kits-label-size);
+}
+
+/* 范围外与被排除：用一条划线表达「明确不做」，不是一个灰色标签。 */
+.rs-finding__scope-row[data-excluded="true"] .rs-finding__scope-item {
+  color: var(--kits-color-ink-muted);
+  text-decoration: line-through;
+  text-decoration-color: var(--kits-color-rule-strong);
+}
+
+/* 交付物正文。它是**最重的一段文字**——这一页存在的理由就是它。 */
+.rs-finding__body {
+  margin: 0;
+  max-inline-size: var(--kits-body-max-width);
+  font-family: var(--kits-font-body);
+  font-size: var(--text-body);
+  line-height: var(--text-body--line-height);
+  text-wrap: pretty;
+}
+
+.rs-finding__confidence {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--kits-space-xs);
+  margin: var(--kits-space-sm) 0 0;
+}
+
+.rs-finding__confidence .kits-label {
+  color: var(--kits-color-ink-muted);
+}
+
+/* 声明值与上限并排。`data-declared` / `data-ceiling` 让越界可以被断言。 */
+.rs-finding__confidence-value {
+  font-size: var(--text-metric-sm);
+}
+
+.rs-finding__confidence-ceiling {
+  padding-inline: var(--kits-space-2xs);
+  border: var(--kits-border-width) var(--kits-border-style) var(--kits-color-rule-strong);
+  border-radius: var(--kits-radius-control);
+}
+
+.rs-finding__hint {
+  margin: 0;
+  color: var(--kits-color-ink-muted);
+  text-wrap: pretty;
+}
+
+/* 契约失败。它是这一页唯一允许「响」的东西——但它仍然不是一张红卡：
+   一条左规则线 + 标题，与这一屏其余部分的语言一致。 */
+.rs-finding__breach {
+  padding: var(--kits-space-sm) var(--kits-space-md);
+  border-inline-start: var(--kits-border-width-strong) var(--kits-border-style)
+    var(--kits-color-negative);
+  background-color: var(--kits-color-surface);
+}
+
+.rs-finding__breach h2 {
+  margin: 0 0 var(--kits-space-2xs);
+  color: var(--kits-color-negative);
+}
+
+.rs-finding__breach-line {
+  margin: 0;
+  text-wrap: pretty;
+}
+
+.rs-finding__breach-action {
+  margin: var(--kits-space-xs) 0 0;
+  color: var(--kits-color-ink-muted);
+}
+
+.rs-finding__claims,
+.rs-finding__citations,
+.rs-finding__limitations,
+.rs-finding__candidates,
+.rs-finding__ai,
+.rs-finding__open {
+  display: flex;
+  flex-direction: column;
+  gap: var(--kits-space-xs);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rs-finding__claim {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr) max-content;
+  gap: var(--kits-space-xs);
+  align-items: baseline;
+}
+
+.rs-finding__claim-index,
+.rs-finding__claim-weakest {
+  color: var(--kits-color-ink-muted);
+}
+
+/* 最弱的一环是置信度上限的**原因**，所以它必须看得见。 */
+.rs-finding__claim-weakest {
+  padding-inline: var(--kits-space-2xs);
+  border: var(--kits-border-width) var(--kits-border-style) var(--kits-color-accent-2);
+  border-radius: var(--kits-radius-control);
+  color: var(--kits-color-accent-2);
+}
+
+.rs-finding__claim-text {
+  font-family: var(--kits-font-body);
+  line-height: var(--kits-body-line);
+  text-wrap: pretty;
+}
+
+/* 一条引用：关系词 + 来源 + 定位 + 原文。落点是**片段**，所以定位必须可见。 */
+.rs-finding__citation {
+  display: flex;
+  flex-direction: column;
+  gap: var(--kits-space-2xs);
+  padding-inline-start: var(--kits-space-sm);
+  border-inline-start: var(--kits-border-width) var(--kits-border-style)
+    var(--kits-color-rule-strong);
+}
+
+.rs-finding__citation[data-verifiable="false"] {
+  border-inline-start-style: dotted;
+  border-inline-start-color: var(--kits-color-negative);
+}
+
+.rs-finding__citation-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--kits-space-2xs);
+  margin: 0;
+  font-family: var(--kits-font-mono);
+  font-size: var(--kits-label-size);
+  letter-spacing: var(--kits-label-tracking);
+}
+
+.rs-finding__citation-head .kits-label {
+  color: var(--kits-color-ink-muted);
+}
+
+.rs-finding__citation-stance[data-form="reverse-arrow"] {
+  color: var(--kits-color-accent-2);
+}
+
+.rs-finding__citation-bad {
+  color: var(--kits-color-negative);
+}
+
+.rs-finding__citation-text {
+  margin: 0;
+  font-family: var(--kits-font-body);
+  font-size: var(--kits-body-size);
+  line-height: var(--kits-body-line);
+  color: var(--kits-color-ink-muted);
+  text-wrap: pretty;
+}
+
+/* 已知局限。**它与「已解决」必须一眼不同**：
+   局限是菱形（旋转 45° 的方块）+ 左侧实线；已解决的洞不会出现在这一页的
+   正文里，它只在下面那一节以一个计数和一句说明出现。 */
+.rs-finding__limitation {
+  display: flex;
+  flex-direction: column;
+  gap: var(--kits-space-2xs);
+  padding: var(--kits-space-xs) var(--kits-space-sm);
+  border-inline-start: var(--kits-border-width-strong) var(--kits-border-style)
+    var(--kits-color-rule-strong);
+  background-color: var(--kits-color-surface);
+}
+
+/* 交付物里写着一条**已经不存在**的边界。它必须显眼——
+   这是交付物与事实之间最需要被人看见的一种分叉。 */
+.rs-finding__limitation[data-overstated="true"] {
+  border-inline-start-color: var(--kits-color-negative);
+}
+
+.rs-finding__limitation-text {
+  margin: 0;
+  font-family: var(--kits-font-body);
+  line-height: var(--kits-body-line);
+  text-wrap: pretty;
+}
+
+.rs-finding__limitation-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--kits-space-2xs);
+  margin: 0;
+  color: var(--kits-color-ink-muted);
+}
+
+.rs-finding__warn {
+  margin: 0;
+  color: var(--kits-color-negative);
+  text-wrap: pretty;
+}
+
+/* 候选措辞：**不是成稿**。用虚线与弱色表达「这是原料，不是交付物」。 */
+.rs-finding__candidate {
+  display: flex;
+  flex-direction: column;
+  gap: var(--kits-space-2xs);
+  padding-inline-start: var(--kits-space-sm);
+  border-inline-start: var(--kits-border-width) dashed var(--kits-color-rule-strong);
+}
+
+.rs-finding__candidate .kits-label {
+  color: var(--kits-color-ink-muted);
+}
+
+.rs-finding__candidate-wording {
+  margin: 0;
+  font-family: var(--kits-font-body);
+  line-height: var(--kits-body-line);
+  color: var(--kits-color-ink-muted);
+  text-wrap: pretty;
+}
+
+/* AI 抽取的事实：候选**材料**，不是正文。所以它比正文弱。 */
+.rs-finding__ai-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--kits-space-2xs);
+  padding-inline-start: var(--kits-space-sm);
+  border-inline-start: var(--kits-border-width) var(--kits-border-style)
+    var(--kits-color-ink-muted);
+}
+
+.rs-finding__ai-row .kits-label {
+  color: var(--kits-color-ink-muted);
+}
+
+.rs-finding__ai-statement {
+  margin: 0;
+  font-family: var(--kits-font-body);
+  line-height: var(--kits-body-line);
+  text-wrap: pretty;
+}
+
+.rs-finding__open-row {
+  padding-inline-start: var(--kits-space-sm);
+  border-inline-start: var(--kits-border-width-strong) var(--kits-border-style)
+    var(--kits-color-ink-muted);
+  font-family: var(--kits-font-mono);
+  font-size: var(--kits-label-size);
+  letter-spacing: var(--kits-label-tracking);
+}
+
+/* -----------------------------------------------------------------------------
+ * §7g · Phase G+H 的移动端收口
+ *
+ * 这一轮把 390px 当作**主视口**检查，而不是把它当成桌面版的降级。
+ * 触控命中区、安全的底部留白、长中文折行都在这里收。
+ * -------------------------------------------------------------------------- */
+
+@media (max-width: 1023px) {
+  /* 抽屉的高度上限。`dvh` 而不是 `vh` —— 移动端浏览器地址栏收起/展开时
+     `vh` 不会变，于是抽屉底部会有一段永远看不到的区域。 */
+  .rs-sheet {
+    max-height: 88dvh;
+  }
+
+  /* 底部安全的留白。`env()` 在有 home indicator 的设备上有值，
+     没有时退回一个间距单位——两种都不该让最后一个控件贴着边缘。 */
+  .rs-sheet__body {
+    padding-block-end: max(var(--kits-space-md), env(safe-area-inset-bottom));
+  }
+
+  /* 材料 / 轨迹的抽屉在窄屏就是底部抽屉，所以它要占满宽度。 */
+  .rs-sheet--responsive {
+    inline-size: 100%;
+  }
+}
+
+@media (max-width: 640px) {
+  /* ---- 触控命中区 ----
+     底部三个入口是移动端的主入口，必须点得准。
+     `min-height` 而不是 padding：命中区要够大，但视觉上不该变胖。 */
+  .rs-rail__foot-action,
+  .rs-rail__deliverable,
+  .rs-src__head,
+  .rs-psg__head,
+  .rs-trace__group-head,
+  .rs-link__stance {
+    min-height: calc(var(--kits-space-unit) * 8);
+  }
+
+  /* ---- 命中区内的垂直居中 ----
+     ⚠ 这里**必须**按 flex 方向分开写。
+     `.rs-src__head` / `.rs-psg__head` / `.rs-trace__group-head` 是
+     `flex-direction: column` 的容器，对它们用 `align-items: center` 会把
+     子元素**横向**居中——整份材料清单在 390px 下变成居中对齐的，
+     而正文却还是左对齐的。第一版就是这样（截图里「第 24 页」浮在中间）。
+     column 方向要纵向居中，用的是 `justify-content`。 */
+  .rs-rail__deliverable,
+  .rs-rail__foot-action {
+    align-items: center;
+  }
+
+  .rs-src__head,
+  .rs-psg__head,
+  .rs-trace__group-head {
+    justify-content: center;
+  }
+
+  /* ---- 长中文折行 ----
+     `overflow-wrap: anywhere` 只在**真的放不下**时才断，所以它不会破坏
+     正常的换行，只会救那些会横向溢出的长串（URL、超长来源标题）。 */
+  .rs-src__title,
+  .rs-psg__text,
+  .rs-trace__group-label,
+  .rs-finding__body,
+  .rs-finding__claim-text,
+  .rs-finding__citation-text,
+  .rs-finding__limitation-text,
+  .rs-link__note {
+    overflow-wrap: anywhere;
+  }
+
+  /* ---- 可横向滚动的东西显式声明 ----
+     none 意味着「这一屏没有任何横向滚动的容器」。 */
+  .rs-sources,
+  .rs-trace,
+  .rs-finding {
+    overflow-x: hidden;
+  }
+
+  /* ---- Finding 在窄屏是单列，不是并排 ----
+     交付物是给人读的文档，390px 下并排会变成两列各 3 个字的窄条。 */
+  .rs-finding__claim {
+    grid-template-columns: max-content minmax(0, 1fr);
+  }
+
+  .rs-finding__claim-weakest {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
+
+  /* 事实时间线在窄屏把「标签 / 值」压成两列中的一列 —— 保持两列，
+     但把标签列收窄，因为标签最长只有四个汉字。 */
+  .rs-trace__facts {
+    grid-template-columns: max-content minmax(0, 1fr);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rs-rail__deliverable,
+  .rs-rail__foot-action,
+  .rs-src__head,
+  .rs-psg__head,
+  .rs-trace__group-head {
+    transition: none;
+  }
+}

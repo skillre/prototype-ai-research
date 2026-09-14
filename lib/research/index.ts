@@ -7,11 +7,13 @@
  * ```
  * types.ts             实体与值类型。只有形状，没有行为。
  * projections.ts       所有派生值的唯一来源（活跃/历史投影、证据强度、依据状态）
- * tensions.ts          张力推导（派生事实）+ 处置合并
+ * tensions.ts          张力推导（派生事实）+ 处置的两条读取面（已知局限 / 已解决）
  * trace.ts             append-only 轨迹与查询
  * operations.ts        唯一允许修改数据的入口，且状态与轨迹原子同写
  * ai-reviewer.ts       AI 输出的数据契约与校验（无模型调用）
  * relation-contract.ts 四个 stance 的完整语义表达（纯数据 + 纯函数，不含样式实现）
+ * sources.ts           Source Index 投影（材料 → 片段 → 论断，全部现算）
+ * finding.ts           交付物投影（引用、边界、置信度上限、AI 准入）
  * dataset.ts           确定性 mock 数据集
  * ```
  */
@@ -23,4 +25,6 @@ export * from "./trace"
 export * from "./operations"
 export * from "./ai-reviewer"
 export * from "./relation-contract"
+export * from "./sources"
+export * from "./finding"
 export { loadBearingResearch, freshResearch, datasetSummary } from "./dataset"

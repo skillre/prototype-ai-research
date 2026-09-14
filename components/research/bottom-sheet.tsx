@@ -42,11 +42,35 @@ export function BottomSheet({
   labelId,
   title,
   onClose,
+  variant = "bottom",
+  testId = "bottom-sheet",
   children,
 }: {
   labelId: string
   title: string
   onClose: () => void
+  /**
+   * 位置。
+   *
+   * ```
+   * bottom      底部抽屉。移动端处置面板用它。
+   * responsive  窄屏底部、宽屏右侧。Source Index 与 Trace 用它——
+   *             它们**两种视口下都要有**，而处置面板只在移动端存在
+   *             （桌面走窄带内联面板）。
+   * ```
+   *
+   * ## 为什么是同一个 primitive 的一个 prop，而不是第二个 modal 组件
+   *
+   * 下面那四件事（焦点进入 / Tab 循环 / Escape / 焦点归还）与位置无关，
+   * 而它们是模态的全部难点。复制一份出来改定位，等于把「哪些行为必须保住」
+   * 变成两份需要各自维护的清单——第二份迟早会漏掉一条，
+   * 而漏掉的那条不会有任何东西报错。
+   *
+   * 定位本身交给 CSS（媒体查询），所以这里没有 `matchMedia`。
+   */
+  variant?: "bottom" | "responsive"
+  /** 稳定的测试钩子。多个抽屉同时存在于代码里时，它们必须能被区分。 */
+  testId?: string
   children: ReactNode
 }) {
   const panelRef = useRef<HTMLDivElement | null>(null)
@@ -57,9 +81,15 @@ export function BottomSheet({
     const previouslyFocused = document.activeElement
     restoreTo.current = previouslyFocused instanceof HTMLElement ? previouslyFocused : null
 
-    /* ① 焦点进入抽屉：优先第一个可聚焦控件（通常是第一个单选项）。 */
-    const panel = panelRef.current
-    panel?.querySelector<HTMLElement>(FOCUSABLE)?.focus()
+    /* ① 焦点进入抽屉：优先**内容区的**第一个可聚焦控件。
+       直接 `panel.querySelector(FOCUSABLE)` 会落在标题行的「关闭」上——
+       那对键盘用户是一次额外的 Tab，而抽屉打开时他想要的是表单的第一个字段。
+       「关闭」仍然在 Tab 循环里（它是循环的第一个落点），只是不抢初始焦点。 */
+    const body = panelRef.current?.querySelector<HTMLElement>(".rs-sheet__body")
+    const target =
+      body?.querySelector<HTMLElement>(FOCUSABLE) ??
+      panelRef.current?.querySelector<HTMLElement>(FOCUSABLE)
+    target?.focus()
 
     return () => {
       /* ④ 焦点归还。注意触发控件在抽屉打开期间一直在 DOM 里，
@@ -101,21 +131,36 @@ export function BottomSheet({
   )
 
   return (
-    <div className="rs-sheet-layer" data-testid="disposition-sheet-layer">
+    <div className="rs-sheet-layer" data-testid={`${testId}-layer`}>
       {/* 遮罩：点击关闭。它没有可聚焦内容，所以点击外部时页面不会失焦到虚空。 */}
       <div className="rs-sheet-scrim" onClick={onClose} aria-hidden />
       <div
         ref={panelRef}
-        className="rs-sheet"
+        className={`rs-sheet${variant === "responsive" ? " rs-sheet--responsive" : ""}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby={labelId}
-        data-testid="disposition-sheet"
+        data-testid={testId}
+        data-variant={variant}
         onKeyDown={onKeyDown}
       >
-        <p className="rs-sheet__title" id={labelId}>
-          {title}
-        </p>
+        {/* 关闭按钮放在标题行里，**不占一个固定在右下角的浮标**：
+            浮标会盖住内容，而抽屉的内容是可滚动的长清单。
+            它同时是 `Tab` 顺序的第一个元素，所以 Tab 循环的第一个落点
+            是「关闭」——一个键盘用户可以立刻退出去。 */}
+        <div className="rs-sheet__head">
+          <p className="rs-sheet__title" id={labelId}>
+            {title}
+          </p>
+          <button
+            type="button"
+            className="rs-sheet__close kits-control"
+            data-testid={`${testId}-close`}
+            onClick={onClose}
+          >
+            {t.cancel}
+          </button>
+        </div>
         <div className="rs-sheet__body">{children}</div>
       </div>
     </div>
@@ -124,4 +169,3 @@ export function BottomSheet({
 
 /** 抽屉外壳的标题由调用方决定；这里只保证它有一个稳定的 id。 */
 export const SHEET_TITLE_ID = "rs-disposition-sheet-title"
-export const sheetCloseLabel = t.cancel

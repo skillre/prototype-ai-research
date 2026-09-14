@@ -229,11 +229,6 @@ export function openTensions(tensions: Tension[]): Tension[] {
   return tensions.filter((tension) => tension.resolution === null)
 }
 
-/** 已处理的张力，含「承认为局限」。 */
-export function closedTensions(tensions: Tension[]): Tension[] {
-  return tensions.filter((tension) => tension.resolution !== null)
-}
-
 /**
  * 张力是否仍然存在。
  *
@@ -253,33 +248,112 @@ export function isTensionStillRaised(data: ResearchData, tensionId: Id): boolean
 }
 
 /* -------------------------------------------------------------------------- */
-/* 已知局限投影                                                                  */
+/* 处置的两条读取面：已知局限 / 已解决                                             */
 /* -------------------------------------------------------------------------- */
+
+/**
+ * 处置记录投影出来的公共部分。
+ *
+ * 两个出口（`resolved` / `accepted-as-limitation`）的形状**故意是同构的**：
+ * 它们都是「人对一条张力的判断」，都带 id、理由、时间、以及
+ * 「这条张力现在还在不在」。差异只有名字与那一个布尔值的方向。
+ *
+ * 抽出来是为了**只有一份**「处置 → 记录」的映射。这两个投影各自实现一遍
+ * 的话，`parseTensionId` 的兜底逻辑就会有两份，而它们迟早会分叉——
+ * 到时候「已解决」那段会开始丢 claimId，而且不会有任何东西报错。
+ */
+interface DispositionRecord {
+  tensionId: Id
+  kind: TensionKind
+  severity: TensionSeverity
+  /** 这条记录挂在哪条论断上。**永远可追溯**——边界不是一句漂浮的话。 */
+  claimId: Id
+  /** 人写下的原文。 */
+  reason: string
+  at: IsoTimestamp
+  actor: Actor
+  /**
+   * 这条记录对应的**事实现在还在不在**。
+   *
+   * 它是两个出口之间唯一的方向性差异：
+   * ```
+   * accepted-as-limitation   stillRaised === true   洞还在，我带着它交付
+   * resolved                 stillRaised === false  洞没了（这正是它的前提）
+   * ```
+   * 界面必须能读到它，否则「接受」会慢慢看起来像「解决」——
+   * 那正是本产品在防的那件事。
+   */
+  stillRaised: boolean
+}
+
+/**
+ * 把某一类处置投影成记录。
+ *
+ * ## 为什么**不能**从 `deriveTensions` 出发
+ *
+ * Phase G+H 在这里修掉了一个真实的投影缺陷——它同时也是「已解决」
+ * 那段界面从未渲染过的**根本原因**：
+ *
+ * ```
+ * 旧实现：tensions = projectTensions(data)        // = deriveTensions 的产物
+ *         resolved = tensions.filter(…)           // ← 恒为空
+ * ```
+ *
+ * `resolved` 的**前提**就是事实改变（不变量 13 守着这一点），而事实一变，
+ * `deriveTensions` 就不再产出那条张力了。于是处置记录存在、也没有任何
+ * `Tension` 对象携带它——**这个投影按构造就永远是空的**。
+ *
+ * 所以「已解决」和「已知局限」一样，必须从 **dispositions** 出发：
+ * 它记录的是「这里曾经有一个洞，现在没了」。那是一件历史事实，
+ * 不是一个从当前数据能重新推导出来的状态。
+ *
+ * ## 全部是派生的
+ *
+ * 没有新的存储。来源只有两处：`data.dispositions`（人的输入）与
+ * `deriveTensions(data)`（事实）。所以它不可能与事实漂移。
+ */
+function projectDispositions(
+  data: ResearchData,
+  resolution: TensionDisposition["resolution"],
+): DispositionRecord[] {
+  const raised = new Map(deriveTensions(data).map((tension) => [tension.id, tension]))
+
+  return data.dispositions
+    .filter((disposition) => disposition.resolution === resolution)
+    .map((disposition) => {
+      const tension = raised.get(disposition.tensionId)
+      /* 张力重算不出来时，仍然用 id 拆出 claimId —— 这条记录**必须仍然可追溯**，
+         哪怕它指向的事实已经消失。丢字段会让历史记录变成一句无法核对的话。
+         对 `resolved` 来说这是常态路径，不是例外。 */
+      const parsed = parseTensionId(disposition.tensionId)
+      return {
+        tensionId: disposition.tensionId,
+        kind: tension?.kind ?? parsed?.kind ?? "unsupported-claim",
+        severity: tension?.severity ?? "notable",
+        claimId: tension?.subject.claimId ?? parsed?.claimId ?? "",
+        reason: disposition.reason,
+        at: disposition.at,
+        actor: disposition.actor,
+        stillRaised: tension !== undefined,
+      }
+    })
+    .sort((a, b) => a.tensionId.localeCompare(b.tensionId))
+}
 
 /**
  * 一条**被接受的局限**。
  *
- * 这是 `accepted-as-limitation` 的投影，不是一种新的实体：每个字段都能追到
- * 一条已存的处置记录，或一条可重算的张力事实。
+ * 每个字段都能追到一条已存的处置记录，或一条可重算的张力事实。
  */
 export interface KnownLimitation {
   tensionId: Id
   kind: TensionKind
   severity: TensionSeverity
-  /** 这条局限挂在哪条论断上。**永远可追溯**——局限不是一句漂浮的话。 */
   claimId: Id
-  /** 人写下的原文。交付物里要用的就是这一句。 */
   reason: string
   acceptedAt: IsoTimestamp
   actor: Actor
-  /**
-   * 这条局限对应的**事实是否仍然存在**。
-   *
-   * `true` 是常态，也是 `accepted-as-limitation` 的定义：
-   * 「洞还在，我决定带着它交付」。如果它是 `false`，说明事实后来变了——
-   * 那条洞已经被填上，这条局限记录就变成了一条**历史**记录而不是现状。
-   * 界面必须能区分这两者，否则「接受」会慢慢看起来像「解决」。
-   */
+  /** `true` 是常态，也是 `accepted-as-limitation` 的定义。 */
   stillRaised: boolean
 }
 
@@ -298,33 +372,64 @@ export interface KnownLimitation {
  * `Finding.knownLimitations` 是一组字符串，是**交付物**；
  * 这里是一组带 id 的记录，是**可追溯的现状**。前者是后者的下游产物，
  * 而且必须由人决定怎么措辞——不是把 reason 数组直接倒进去。
- * 本阶段只建立投影，不做 Finding 页面。
- *
- * ## 全部是派生的
- *
- * 没有新的存储。来源只有两处：`data.dispositions`（人的输入）与
- * `deriveTensions(data)`（事实）。所以它不可能与事实漂移。
+ * 见 `Finding.knownLimitationRefs`。
  */
 export function projectKnownLimitations(data: ResearchData): KnownLimitation[] {
-  const raised = new Map(deriveTensions(data).map((tension) => [tension.id, tension]))
-
-  return data.dispositions
-    .filter((disposition) => disposition.resolution === "accepted-as-limitation")
-    .map((disposition) => {
-      const tension = raised.get(disposition.tensionId)
-      /* 张力重算不出来时，仍然用 id 拆出 claimId —— 这条记录**必须仍然可追溯**，
-         哪怕它指向的事实已经消失。丢字段会让历史记录变成一句无法核对的话。 */
-      const parsed = parseTensionId(disposition.tensionId)
-      return {
-        tensionId: disposition.tensionId,
-        kind: tension?.kind ?? parsed?.kind ?? "unsupported-claim",
-        severity: tension?.severity ?? "notable",
-        claimId: tension?.subject.claimId ?? parsed?.claimId ?? "",
-        reason: disposition.reason,
-        acceptedAt: disposition.at,
-        actor: disposition.actor,
-        stillRaised: tension !== undefined,
-      } satisfies KnownLimitation
-    })
-    .sort((a, b) => a.tensionId.localeCompare(b.tensionId))
+  return projectDispositions(data, "accepted-as-limitation").map((record) => ({
+    tensionId: record.tensionId,
+    kind: record.kind,
+    severity: record.severity,
+    claimId: record.claimId,
+    reason: record.reason,
+    acceptedAt: record.at,
+    actor: record.actor,
+    stillRaised: record.stillRaised,
+  }))
 }
+
+/**
+ * 一条**已被解决**的张力。
+ *
+ * 与 `KnownLimitation` 同构，但语义相反：这条记录说的是「这里曾经有一个洞，
+ * 事实改变之后它不再被推导出来了」。
+ */
+export interface ResolvedTension {
+  tensionId: Id
+  kind: TensionKind
+  severity: TensionSeverity
+  claimId: Id
+  /** 当时写下为什么可以标记为已解决。 */
+  reason: string
+  resolvedAt: IsoTimestamp
+  actor: Actor
+  /**
+   * 事实现在还在不在。
+   *
+   * 对 `resolved` 来说**正常情况下必须是 `false`**——守卫（不变量 13）
+   * 只允许在事实改变之后做这个处置。`true` 意味着证据后来被停用了，
+   * 洞又回来了：那条「已解决」记录就成了历史，而不是现状。
+   * 这与 `KnownLimitation.stillRaised` 的方向正好相反，而且是刻意的。
+   */
+  stillRaised: boolean
+}
+
+/**
+ * 已解决投影 —— `resolved` 处置的读取面。
+ *
+ * 与 `projectKnownLimitations` 对称，理由见 `projectDispositions` 的说明：
+ * 从 dispositions 出发而不是从 `deriveTensions` 出发，是因为这个处置
+ * **以事实改变为前提**，而事实一变它就再也推导不出来了。
+ */
+export function projectResolvedTensions(data: ResearchData): ResolvedTension[] {
+  return projectDispositions(data, "resolved").map((record) => ({
+    tensionId: record.tensionId,
+    kind: record.kind,
+    severity: record.severity,
+    claimId: record.claimId,
+    reason: record.reason,
+    resolvedAt: record.at,
+    actor: record.actor,
+    stillRaised: record.stillRaised,
+  }))
+}
+
