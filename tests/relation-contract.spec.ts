@@ -611,13 +611,23 @@ test.describe("13 · 无实现细节泄漏", () => {
 
 test.describe("14 · 契约是唯一消费入口", () => {
   /**
-   * 这一条目前**必然通过**——因为还没有 UI。
+   * 这条测试守的是「关系语义只有一个入口」。
    *
-   * 它的价值在将来：Phase D 写 ArgumentChain 时，如果有人写下
-   * `stance === "contradicts"`，这个测试会失败。契约的意义就是让这种判断
-   * 收敛到一处；散落的分支会漂移，而漂移时不会有任何东西报错。
+   * 散落的 `stance === "…"` 分支会漂移，而漂移时不会有任何东西报错——
+   * 屏幕上的关系会显示得和正确的一样自信。
+   *
+   * ## Phase G+H 扩充了扫描范围
+   *
+   * 原来只扫 `app/` 与 `components/`。而 `lib/research-ui/` 是**组装层**：
+   * 它同样在把领域事实翻成界面内容，而且它没有 React 组件那层「看起来
+   * 是界面」的提醒。Phase G+H 的 trace 视图就是在这层把 `link.stance`
+   * 直接拼进了文案（界面上显示成 `supports引用`）——一个中文词旁边挂着
+   * 一个英文标识，而三套测试都没抓到它：本地化审计因为那串文字含中文
+   * 而放行，DOM 断言只查「含不含『引用』」，扫描范围又没覆盖这个目录。
+   *
+   * 一张截图抓到了它。这个测试是让它不可能再发生。
    */
-  test("app/ 与 components/ 里没有对 stance 字面量的分支判断", () => {
+  test("app/ · components/ · lib/research-ui/ 里没有对 stance 字面量的分支判断", () => {
     const files: string[] = []
     const walk = (dir: string) => {
       let entries: string[]
@@ -634,6 +644,7 @@ test.describe("14 · 契约是唯一消费入口", () => {
     }
     walk(join(ROOT, "app"))
     walk(join(ROOT, "components"))
+    walk(join(ROOT, "lib", "research-ui"))
 
     const offenders: string[] = []
     for (const file of files) {
@@ -648,5 +659,8 @@ test.describe("14 · 契约是唯一消费入口", () => {
       offenders,
       "UI 不得自行判断 stance —— 必须消费 getRelationPresentation()",
     ).toEqual([])
+    /* 扫描范围本身也是断言的一部分：目录写错或消失时，
+       上面的 offenders 会是空数组，一个**静默的绿**。 */
+    expect(files.length, "扫描范围不能为空").toBeGreaterThan(20)
   })
 })
