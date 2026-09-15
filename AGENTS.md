@@ -8,15 +8,45 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 <!-- END:nextjs-agent-rules -->
 
-# Prototype Starter — Agent Instructions
+# Prototype AI Research — Agent Instructions
 
-这是一个**长期复用的 AI Agent 驱动 Interactive Prototype Starter**：只做「Frontend + local state + realistic mock data」。
+这是一个**AI 研究论证工作台**：把「研究问题 → 论断 → 原文片段 → 来源」连成一条可以逐条核对的
+纵向论证链，并如实呈现缺口。只做「Frontend + local state + realistic mock data」。
+
+> 本仓由 Factory baseline 派生，因此仍然**读起来像 Factory**：开发原则、Browser QA、Kits、
+> Git 流程这些块是 Factory Core 的规则，逐条照抄。**产品语义与领域规则是本仓自己的**
+> （`## 领域层`、`## 产品语义不变量`、`## 文案与本地化`），不要拿 baseline 的示例去覆盖它们。
 
 ## 项目边界
 
 - ✅ Next.js 16 App Router · TypeScript · Tailwind v4 · pnpm
 - ✅ shadcn/ui（**base-nova 风格，基于 Base UI**，而非 Radix）· Motion 13 · Zustand 5 · Recharts 3 · dnd-kit · Playwright
-- ❌ 禁止加入 Database / Supabase / Authentication / Docker / Kubernetes / Monorepo / Turborepo / Microservices / Backend service / MCP / Multi-agent orchestration / GitHub Actions / Vercel API & CLI automation / Cloudflare / 任何新的 deployment platform。这些以后再处理。
+- ✅ DSH 宿主侧的**多 Subagent 编排**：允许并要求——边界与判据见下方 `factory-core-policy` 管理块。
+- ✅ GitHub Actions **只作为 CI 质量门**（`.github/workflows/ci.yml`）：策略门禁 · 初始化边界 · 语义契约 · Kits doctor · lint · typecheck · build · test · qa。**部署仍然不是 CI 的事**——由 Vercel Git Integration 负责。
+- ❌ 禁止加入 Database / Supabase / Authentication / Docker / Kubernetes / Monorepo / Turborepo / Microservices / Backend service / MCP / Cloudflare / 任何新的 deployment platform。这些以后再处理。
+- ❌ 禁止在**产品应用代码**里引入编排框架或编排运行时——这才是旧版那句「Multi-agent orchestration」真正要守的东西。
+- ❌ 禁止 Vercel API & CLI automation（deployment token / bypass secret / `vercel` 命令自动化）：部署授权是人的决定，不是构建的副作用。
+
+<!-- BEGIN:factory-core-policy v1.3.0 -->
+> 本块由 `pnpm factory:agents --print-block` 从 `factory-policy.json` 渲染，`pnpm factory:agents` 逐字校验。
+> **不要手工编辑块内文字**：改 `factory-policy.json`（其关键值由 `lib/factory-policy.schema.json` 钉住），再同步本块。块外仍是人类写的文档。
+
+## Factory Core Policy v1.3.0（Agent 编排与并发）
+
+- **Agent 编排边界（是边界，不是禁令）**：**允许并要求**在 **DSH 宿主**内用多 **Subagent** 拆分与并行任务；
+  **禁止**在**产品应用代码**里引入编排框架或编排运行时。
+  - 允许：宿主内拆分/并行只读或彼此独立的任务；宿主的 Subagent 调用不属于产品代码。
+  - 禁止：产品应用代码及其运行时依赖（app/components/lib/hooks/stores/scripts）里出现 agent framework / orchestrator runtime / 多 agent 调度依赖。
+  - 判据：`app` `components` `lib` `hooks` `stores` `scripts` 不得 import 编排 SDK；`package.json` 的运行时依赖不得出现编排框架。宿主侧的 Subagent 调用不是产品代码，不受此限。
+- **模型路由**：provider `opencode-go-dsv41` / model `deepseek-flash` / reasoning effort `max`（2026-09-15 与 DSH 模型目录核对）。Subagent 默认走这条路由；改路由先改 `factory-policy.json`。
+- **单 worktree 单写者**（`single-writer`）：同一棵工作副本同一时间只有一个写者；要并行写就各自独立 worktree。两个写者共享一棵树，冲突不是概率问题，是时间问题。
+- **共享路径单 owner**（`single-owner`）：`AGENTS.md`、`package.json`、`factory-policy.json`、`factory.lock.json`、契约 schema 与门禁脚本这类共享面，同一时间只有一个 owner，其余 agent 只读。
+- **test / qa 串行**（`serial`）：`pnpm test` 与 `pnpm qa` **永不并发**（Next 16 dev server 按项目加锁，并行只会在错误的 server 上出结果）。CI 里同样不得拆成两个并行 job。
+- **HVA（人工视觉验收）**：`required-before-release` —— 没有 HVA 就没有发布；Agent 不能替人验收，未完成时状态只能是 `READY FOR HUMAN VISUAL ACCEPTANCE`。
+- **部署授权**：`explicit-user-authorization` —— 源码发布 ≠ Production 部署。没有用户明确授权，不创建/提升 Production 部署、不改 Deployment Protection、不 push Production Branch。详见 `docs/vercel-bootstrap.md` 第 0 节与 `docs/release-runbook.md`。
+
+机器可读副本：`factory-policy.json` · 关键值：`lib/factory-policy.schema.json` · 基线锁：`factory.lock.json` · 校验器：`scripts/guard-agent-policy.mjs`（`pnpm factory:agents`）。
+<!-- END:factory-core-policy -->
 
 ## 开发原则（必须遵守）
 
@@ -51,7 +81,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - 必须考虑 **responsive**（桌面与移动端都要可用）。
 - **重要交互必须经过真实浏览器验证**（见 Browser QA 规则）。
 
-## Browser QA 规则（Factory v1.1）
+## Browser QA 规则（Factory v1.1 标准 · v1.2 执行器）
 
 对于重要交互，**不能只通过源码阅读判断**。必须真实打开浏览器执行。
 
@@ -59,6 +89,11 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 pnpm qa            # 全量：所有路由 × 桌面/移动 × 明暗 + 能力探针
 pnpm qa --routes=/demo
 ```
+
+**执行器是共享的**：`pnpm qa`（LOCAL_MANAGED，自己起 server、自己停）与 `pnpm qa:online`
+（REMOTE，扫一个已经存在的 URL）跑的是**同一份扫描器** `.qa/sweep.mjs`——检查项、阈值、
+矩阵、style-presence 通道全部复用，只有 origin 与请求头不同。**两套实现等于两套真相**，
+而分歧时报告的永远是较弱的那一套。
 
 标准见 `docs/browser-qa.md`。要到达的状态：
 
@@ -89,6 +124,9 @@ pnpm qa --routes=/demo
 - **真实内容祖先禁止 `aria-hidden="true"`。** 只有装饰性元素才允许。
 - 注意 pruned 的精确含义：`aria-hidden` / `hidden` / `inert` / `display:none` 剪子树；
   `role="presentation"` **只去掉该节点自己的语义，不剪子树**。
+- **`DOM == AX` 是必要条件，不是充分条件。** 剪枝会同时从两侧移除节点，整块内容被隐藏时两侧数量依然相等。
+  真正的检测器是配套的「`aria-hidden` 宿主内不得有可交互内容」扫描。**两条检查必须同时存在**，
+  任何一条被删掉，这一类回归都会重新变成静默通过。
 
 ### QA Probe Integrity
 
@@ -107,6 +145,20 @@ pnpm qa --routes=/demo
 
 **CSS 自定义属性只在声明它的元素及其后代上可见。** 把探针挂到 `<body>` 上去读一个声明在
 深层元素上的变量，一定读到 0。
+
+### Style Presence（这一页不是一份没写 CSS 的 HTML）
+
+**App Router 按模块图打包 CSS。** 某条路由的入口组件没有 import 那份样式表，样式就永远到不了浏览器——
+而不报错、不警告、DOM 完整、所有按 testid 的断言全部通过。第三个 Prototype 真的发布过这样一条路由。
+
+`pnpm qa` 现在把每条路由与**同一个浏览器**里渲染的**未加样式基线**做差，要求至少在
+`stylePresenceMinChannels` 个独立样式域（`box-reset` · `type` · `surface` · `ink`）上不同。
+
+**禁止**用这些代理指标替代：`styleSheets.length > 0` · CSS 请求存在 · 只检查 CSS 变量是否声明 ·
+`fontFamily !== ""`（UA 默认字体也是非空字符串）· 引用产品专属 class · 注入 debug marker。
+
+**已知边界**：它检测的是**整页处于浏览器默认态**。根样式表加载了、只有路由自己的样式表缺失时，
+产品必须自己写断言（那是产品知识，Factory 无从猜测）。见 `docs/browser-qa.md` 第 7 节。
 
 ### Reduced Motion / Coarse Pointer
 
@@ -145,6 +197,33 @@ pkill -f "next-server"     # ✗ 同上
 > 另注：Next 16 的 dev server 是**按项目**加锁的（`.next/dev/lock`），不是按端口。
 > 同一项目不能再起第二个 `next dev`；`pnpm test` 与 `pnpm qa` 不能同时跑。
 
+### 在线 QA（REMOTE）
+
+**本地绿了不等于部署上是对的。** `pnpm qa:online` 用**同一个** `.qa/sweep.mjs` 扫一个已经存在的 URL：
+
+```bash
+pnpm qa:online --base-url=<url> --identity=<deployment.json> --expect-sha=<rc-sha>
+```
+
+- **不是两套真相**：探针、判据、矩阵、style-presence 通道、DOM==AX 配套扫描全部复用；
+  只有 origin 与请求头不同；
+- **只观察，不编排**：不部署 · 不 promote · 不 merge · 不 tag · **永不创建 bypass token** ·
+  不启动本地 server · 不持久化凭证；
+- secret 只能由用户通过 `QA_ONLINE_BYPASS_SECRET` 提供（→ `x-vercel-protection-bypass` 头），
+  **不打印、不持久化、不提交**；没有 secret 时停下来说明；
+- **受保护（302 跳 SSO / 401 / 403）既不是部署失败，也不是 public**；
+- **身份先于 QA**：给了 `--expect-*` 却没给 `--identity` → 不跑；
+  期望值与部署记录不一致 → **跑 QA 之前** STOP。
+
+详见 `docs/browser-qa.md` 第 8 节、`docs/release-runbook.md`。
+
+### T1：dev-server manifest 竞态不是产品缺陷
+
+只在 Turbopack dev server 下出现、日志里是路由 manifest 的 JSON 解析错误（读到写入中的文件）、
+**重跑即绿**，且从未在 `next start` / Preview / Production 上复现 —— 三条同时成立才算 T1：
+**重跑一次并记录，不要去改产品**。**「跑得慢」不等于 T1**；任何一条不成立就按真实失败处理。
+见 `docs/browser-qa.md` 第 9 节。
+
 ## Quality Gates
 
 任何 Prototype 在「完成」之前必须全部通过：
@@ -159,7 +238,16 @@ pnpm qa
 
 任何一项失败：**禁止声称完成**。必须修复后重新执行，直至全部通过。
 
-`pnpm check` 会依次跑完这五项。
+```bash
+pnpm factory:agents    # 策略门禁：编排边界 / 管理块 / schema 关键值 / CI 契约（check 的第一项）
+pnpm factory:init      # 初始化边界：stage=product、baseline / sample 身份残留、0-scan
+pnpm factory:contract  # 产品语义不变量：声明 ↔ 测试登记，双向核对
+pnpm qa:doctor         # Kits 安装状态是否可信
+```
+
+`pnpm check` 会依次跑完 **`pnpm factory:agents`** 加上面五项——**策略门禁是第一项**，
+由 `scripts/guard-agent-policy.mjs` 机器校验（`check` 必须以 `pnpm factory:agents &&` 开头）。
+顺序不是风格：「先过政策，再谈绿」。一个在绿树之外的策略门禁等于没有门禁。
 
 ## Kits Ownership Contract
 
@@ -271,6 +359,64 @@ feature branch → development → browser QA → Playwright
 
 Agent 默认**禁止自动 merge**；默认禁止 push main、合并 main、删除 feature branch。只有用户明确要求时才执行 merge。发生 merge conflict：**停止并报告**，不擅自进行高风险 conflict resolution。
 
+### 部署授权（Vercel）
+
+**这是基础设施边界，不是构建配置。完整契约见 `docs/vercel-bootstrap.md` 第 0 节。**
+
+没有用户**明确授权**时，不得：
+
+- 创建 Vercel Project · link project · 修改 Production Branch · 修改 Deployment Protection
+- 创建 Production deployment · 把 Preview 提升为 Production · 创建 automation bypass secret
+- **push 到项目的 Production Branch**（它可能自动创建 Production deployment）
+
+另外四条：
+
+1. **push Production Branch 之前先探测再决定。** Production Branch 未知时也要 **STOP**——
+   "不知道"不是"不会触发生产"。**不允许先 push 再 cancel**：Production 建起来之后 cancel 不是回滚。
+2. **部署身份必须验证 `target` / `git ref` / `git SHA` / `readyState`，不能靠 URL。**
+   `gitSource` 的 target 语义不能猜，要回读。
+3. **受 SSO 保护的 URL 不得称为 public。** 只有匿名请求 2xx 才支持 "public" 这个说法。
+4. **`vercel curl` 会顺带创建 automation bypass secret。** 执行前说明，或执行后立即披露——
+   包括它是否仍然存在。不得当普通 curl 处理。
+
+```bash
+node scripts/verify-deployment.mjs actions     # 授权矩阵
+node scripts/verify-deployment.mjs preflight --branch <b> [--production-branch <p>] [--authorized]
+node scripts/verify-deployment.mjs verify --deployment <json> --rc <accepted-sha>
+node scripts/verify-deployment.mjs access --status <code> [--location <url>]
+```
+
+发布到 Production 时：**Production 部署的 SHA 必须等于已验收 RC 的 SHA**（`pnpm factory:deploy`）。
+
+### 发布（RELEASE）
+
+**完整顺序见 `docs/release-runbook.md`。** 发布不是一次 push，是一个 commit 依次过门：
+
+```
+RC SHA → 本地门禁 → Preview(同一 SHA) → 在线 QA → 人工视觉验收
+       → 源码发布 → Production(同一 SHA) → annotated tag → housekeeping
+```
+
+1. **RC 是一个明确的 SHA**，不是「feature branch 上最新的 commit」。定了 RC 就不要再往同一分支推新 commit。
+2. **状态不是布尔**：`NOT READY` → `READY FOR HUMAN VISUAL ACCEPTANCE` → `READY TO RELEASE SOURCE`
+   → `READY TO DEPLOY PRODUCTION`。**没有 `READY FOR RELEASE` 这个状态**：
+   HVA 未完成时只能是 `READY FOR HUMAN VISUAL ACCEPTANCE`。
+3. **源码发布 ≠ Production 部署。** merge `main` 与「创建 Production deployment」是两次独立授权。
+4. **在线 QA 跑在部署上**（`pnpm qa:online`）：本地绿了不等于部署上是对的。
+   REMOTE 模式是**观察者**：不部署、不 promote、不 merge、不 tag、**不创建 bypass token**；
+   secret 只能由用户通过 `QA_ONLINE_BYPASS_SECRET` 提供，且不打印、不持久化、不提交。
+5. **受保护不是失败，也不是 public。** 没有 secret 时 runner 停下来说明，不报假绿。
+6. **Production 验收是多证据**：target / ref / SHA == RC / alias 正在服务 / 核心路由 HTTP /
+   Production 在线 QA。`readyState: READY` 必要但不充分；平台的 `live` 字段**不作为判据**。
+7. **tag 必须是 annotated，且 target == 已验收 RC SHA**；不要 `git push --tags`。
+   PR 走 ff-only 时不要假设 `mergeCommit.sha` 存在，也不要为了「有个 SHA 可引用」而制造 merge commit。
+8. **housekeeping 不是可选项**（九项）：bypass secret 是否已清理 · 临时 credential 是否清理 ·
+   Deployment Protection 未被改动 · working tree clean ·
+   local/origin/tag SHA 对齐 · 截图与报告不在 repo 内 · 被取消的 deployment 只作历史 ·
+   feature branch 去留已决定 · 文案/polish 进 backlog（**不偷偷塞进已验收的 SHA**）。
+
+机器判据在 `scripts/lib/release-contract.mjs`（授权/身份/可访问性一律 re-export 自 Phase A DEPLOY 契约，没有第二份实现）。
+
 ## 设计 Token
 
 一切视觉常量来自 `app/globals.css` 的 design token 层（typography `text-display/title/subtitle/heading/caption/label/eyebrow/metric/metric-sm/numeric`、semantic spacing `p-gutter/gap-stack/mt-section`、radius `rounded-field/rounded-card/rounded-panel`、motion `duration-*`/`ease-*`、内容宽度 `max-w-dashboard/content/text`）。禁止在页面里撒 magic number。
@@ -377,10 +523,68 @@ dataset.ts      确定性 mock 数据集
 3. **撤回不是删除。** 没有 `deleteClaim` / `deleteLink`，也不会有。论断用 `status: "retracted"`，链接用 `retiredAt`。历史投影永远查得到。
 4. **只有一种人写的关系原语：`EvidenceLink`。** 不要引入 `ClaimRelation` / `GraphEdge` / `RelationNode`。Claim ↔ Claim 的冲突由数据推导成 `Tension`。
 
-**改动领域层之前先读 `tests/invariants.spec.ts`。** 那 12 条不变量是这个产品的规格书，不是测试的附属品。
+**改动领域层之前先读 `tests/invariants.spec.ts` + `product-contract.json`。** 那 **18 条**不变量是这个
+产品的规格书，不是测试的附属品；它们的机器可读 id 登记在 `product-contract.json`，由
+`pnpm factory:contract` 双向核对（见下节）。
 
 **唯一的关系原语：** `Passage ── EvidenceLink ──> Claim`，stance 为 `supports` / `contradicts` / `qualifies` / `context`。
 `contradicts` 是信息量最大的一类——工具普遍只记录「我引用过这个」，不记录「这段材料其实在反驳我」。
+
+## 产品语义不变量（Product Semantic Contract）
+
+**视觉回答「长什么样」；语义回答「绝不能搞错什么」。两者分开。**
+
+`product-contract.json` 是产品语义约束的登记面，**不是** Visual Manifest 的一部分：
+
+```json
+{ "schemaVersion": 1,
+  "invariants": [
+    { "id": "resolved.requires-fact-change",
+      "statement": "把张力标记为「已解决」必须伴随一次真实的事实变更，而不只是状态字段被改写。",
+      "enforcement": "test" } ] }
+```
+
+- **id 机器可读、与语言无关**（点分小写 kebab），不依赖中文文案，也不依赖测试标题；
+- **测试用 `tests/support/product-contract.ts` 的 `invariant(id, title, …)` 登记**同一个 id；
+- `pnpm factory:contract` **双向核对**：声明了没登记 → FAIL；登记了没声明 → FAIL；
+- **0 条合法**，但它必须是一个决定（gate 会以 warning 说出来）；
+- **Factory 不生成、不推断、不改写任何一条**：不许从代码猜 invariant、从 UI 猜状态机、
+  自动生成 statement 或领域测试。判断是人做的。
+
+本产品有 **18 条**，全部在 `tests/invariants.spec.ts` 里，每条都带负例。`invariant()` 的调用写在
+**对应的 `test.describe` 内部**——登记紧挨着持有它的那些测试。因此 `N · id` 形式的标题被保留：
+**标题给人读，id 给机器查**，两者不互相替代。
+
+## 初始化边界（Initialization Boundary）
+
+**`prototype-starter` 里住着三种东西，处置方式完全不同：**
+
+| 层 | 路径 | 派生新原型时 |
+|---|---|---|
+| **A · Factory Core** | `components/**` `lib/**` `scripts/**` `.qa/**` `hooks/**` `stores/**` `skills/**` 与 Core 契约测试 | **复制** |
+| **B · Reference Sample** | `app/demo/**` `lib/mock-data.ts` 与示例测试 | **参考，默认删除**；保留就必须显式标注 |
+| **C · Initialization Surface** | `package.json` `README.md` `app/layout.tsx` `app/page.tsx` `app/not-found.tsx` `lib/i18n/zh-CN.ts` | **必须重写** |
+
+边界是机器可读的：`init-contract.json` + `pnpm factory:init`。
+
+- 本仓 `stage: "product"`：初始化面上不得残留 baseline 身份（包名、`app/layout.tsx` 的标题、
+  Factory 落地页标记），Reference Sample 只能在 `sampleOwned` 的路径里说自己的名字；
+- 扫描有 `scanned / excluded / violations`，**0 scanned 不能 PASS**；
+- **本仓保留了 `/demo`**（`app/demo/**` + `lib/mock-data.ts` + 两个 demo spec 列在 `sampleOwned`）。
+  它是被有意保留的 Reference Sample，不是残留；首页的 `/demo` 入口带 `data-reference-sample` 标注。
+- `sampleMarkers` 只列**已被移除**的 CRM 参考产品的身份（`智悟云` / `zhiwu.cn`）。`/demo` 自己的
+  品牌文案仍在 `lib/i18n/zh-CN.ts` 的 `demo` 组里——这是「决定保留该示例」的代价；把它一并列成
+  禁止项，会让 `pnpm factory:init` 在「有意保留示例」这个**正确**状态下失败，从而逼出一个假的
+  豁免。**这是一条被写下来的取舍，不是漏检**；要彻底清掉它需要把 demo 文案移出产品词典，
+  那属于 UI 迁移，不在本轮范围内。
+
+**完整清单（13 步，人工执行）见 `docs/product-initialization.md`。**
+
+> **Shell 是可选能力**：`Sidebar` / `TopNav` / `MobileNav` 由产品按需使用，
+> `app/layout.tsx`（Core）不得引入任何一种产品 IA（有 contract test 守着）。
+> 本产品的产品路由（`/r/[researchId]` 及其交付物）**没有用 shell**——它自带
+> `research-shell.css` 那一套编排；唯一把 shell 接起来的是保留下来的 `/demo` 示例。
+
 
 ## Zustand 约定
 
@@ -395,14 +599,22 @@ pnpm lint              # ESLint
 pnpm typecheck         # next typegen + tsc --noEmit
 pnpm test              # Playwright E2E（端口守卫 + 自管 server，需先 pnpm exec playwright install chromium）
 pnpm build             # production build（Turbopack）
-pnpm qa                # Browser QA 全量扫描（自带 server，端口 3200）
-pnpm check             # lint + typecheck + test + build + qa
+pnpm qa                # Browser QA 全量扫描（自带 server，端口 3230）
+pnpm qa:online         # 在线 QA（REMOTE：扫一个已存在的 URL，不部署、不建 token）
+pnpm check             # factory:agents + lint + typecheck + test + build + qa
 
+pnpm factory:agents    # Agent 策略门禁（管理块 ↔ factory-policy.json；--print-block 同步块）
+pnpm factory:init      # 初始化边界（baseline / product、身份残留、0-scan）
+pnpm factory:contract  # 产品语义不变量：声明 ↔ 测试登记，双向核对
+pnpm factory:deploy    # 部署授权与身份（preflight / verify / access / actions）
 pnpm factory:manifest  # 校验 visual-manifest.json（结构 + 上游比对）
 pnpm factory:kits      # 依 Manifest 安装 Kits（默认 dry-run）
 pnpm factory:kits --write
 pnpm qa:doctor         # Kits doctor 质量门
 ```
+
+> QA 端口是 **3230**（`.qa/qa.config.mjs` 的 `QA_PORT`）。3200 是 baseline 的槽位，同机还有
+> s1 / kits 在跑——端口是独占资源，见根工作区 `catalog/ports.json`。
 
 > `pnpm test` 与 `pnpm qa` **不能同时运行**：Next 16 的 dev server 按项目加锁。
 

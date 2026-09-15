@@ -23,7 +23,7 @@ import { QA_HOST, QA_ORIGIN, QA_PORT } from "./.qa/qa.config.mjs"
  *   - pins a dedicated port that is not 3000 and not another prototype's
  *     (`QA_PORT` in `.qa/qa.config.mjs` — one source of truth),
  *   - pins the dev server to that port explicitly, so Next can never auto-bump
- *     to 3201 while `baseURL` still points at 3200,
+ *     to 3231 while `baseURL` still points at 3230,
  *   - sets `reuseExistingServer: false` unconditionally — the server is always
  *     started and always stopped by this run, so teardown can only ever kill a
  *     process we own,

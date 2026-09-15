@@ -1,0 +1,25 @@
+{
+  "$schema": "./lib/init-contract.schema.json",
+  "schemaVersion": 1,
+  "stage": "product",
+  "baselineIdentity": {
+    "packageName": "prototype-starter",
+    "metadataTitle": "原型工作台 Prototype Starter",
+    "landingMarker": "data-factory-landing"
+  },
+  "sampleOwned": [
+    "app/demo/",
+    "lib/mock-data.ts",
+    "tests/demo.spec.ts",
+    "tests/demo-advanced.spec.ts"
+  ],
+  "productFacing": [
+    "package.json",
+    "README.md",
+    "app/layout.tsx",
+    "app/page.tsx",
+    "app/not-found.tsx",
+    "lib/i18n/zh-CN.ts"
+  ],
+  "sampleMarkers": ["智悟云", "zhiwu.cn"]
+}

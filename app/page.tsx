@@ -52,7 +52,13 @@ export default function LandingPage() {
             </p>
           </FadeIn>
           <FadeIn delay={0.24} className="flex flex-wrap items-center justify-center gap-3">
-            <Link href="/demo" className={buttonVariants({ size: "lg" })}>
+            {/*
+             * 这个入口指向的是 **Reference Sample**（`app/demo/**`），不是本产品的界面。
+             * `data-reference-sample` 把它标成示例入口：产品可以保留参考示例，但不能
+             * 把它当成产品的主入口——`pnpm factory:init` 的初始化边界检查读的就是这个标记
+             * （见 init-contract.json 与 AGENTS.md「初始化边界」）。
+             */}
+            <Link href="/demo" data-reference-sample className={buttonVariants({ size: "lg" })}>
               {copy.primaryCta}
               <ArrowRightIcon />
             </Link>

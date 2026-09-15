@@ -7,6 +7,7 @@ import {
   isVacuousFirstVisual,
   validateVisualManifest,
 } from "../lib/visual-manifest"
+import { stripComments } from "../scripts/lib/kits-seam.mjs"
 import {
   QA_ORIGIN,
   QA_PORT,
@@ -190,17 +191,29 @@ const KITS_MANAGED_PREFIX = join("lib", "kits")
 test("product source names no specific Kits asset outside lib/kits", () => {
   const offenders = []
   const scanned = ["lib", "components", "app", "scripts", "hooks", "stores"]
+  let filesScanned = 0
 
   for (const dir of scanned) {
     if (!existsSync(join(ROOT, dir))) continue
     for (const file of walk(join(ROOT, dir), (p) => /\.(ts|tsx|mjs)$/.test(p))) {
       if (file.startsWith(KITS_MANAGED_PREFIX)) continue
-      const contents = read(file)
+      filesScanned += 1
+      /*
+       * **Prose is not code.** `scripts/lib/kits-seam.mjs` has to *name* the
+       * asset ids — that is how it validates them — and it does so in its header
+       * comment. Matching raw text made this gate fail on the tool that enforces
+       * it, which is the classic way a real rule gets deleted instead of fixed.
+       * Upstream's version of this check has always stripped comments first.
+       */
+      const contents = stripComments(read(file))
       for (const id of KITS_ASSET_IDS) {
         if (contents.includes(id)) offenders.push(`${file} → "${id}"`)
       }
     }
   }
+
+  // A scan that looked at nothing must not be able to report a clean tree.
+  expect(filesScanned, "扫描必须真的扫到文件").toBeGreaterThan(0)
 
   expect(
     offenders,
@@ -320,9 +333,21 @@ test("QA route config contains no product-specific route", () => {
 })
 
 test("QA sweep discovers routes and never hard-codes them", () => {
-  const sweep = read(".qa/browser-qa.mjs")
+  /*
+   * v1.2 split the harness in two, on purpose:
+   *   `.qa/sweep.mjs`       every check, every threshold — shared by `pnpm qa`
+   *                         (LOCAL_MANAGED) and `pnpm qa:online` (REMOTE);
+   *   `.qa/browser-qa.mjs`  only the dev-server lifecycle the local run owns.
+   * Route discovery therefore lives in `sweep.mjs` now. Asserting it against the
+   * entry point would have been asserting the old file layout, not the rule.
+   */
+  const sweep = read(".qa/sweep.mjs")
   expect(sweep).toContain("discoverRoutes")
   expect(sweep).not.toMatch(/["'`]\/crm/)
+
+  const local = read(".qa/browser-qa.mjs")
+  expect(local).toContain("runSweep")
+  expect(local).not.toMatch(/["'`]\/crm/)
 })
 
 test("QA port is dedicated and not the framework default", () => {

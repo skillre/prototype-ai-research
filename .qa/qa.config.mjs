@@ -14,17 +14,24 @@
  */
 
 /**
- * The QA port. Deliberately NOT 3000.
+ * The QA port. Deliberately NOT 3000, and deliberately not somebody else's slot.
  *
  * 3000 is Next's default, which means every prototype on this machine, plus any
- * stray `next dev`, races for it. Sibling projects already claim 3100 (hub) and
- * 3210 (finance); 3200 is the Factory's own slot.
+ * stray `next dev`, races for it. 3200 was the Factory baseline's own slot, and
+ * this repository used to hold it too — which is exactly what the workspace
+ * catalog flagged: four repositories (`starter`, `s1`, `ai-research`, `kits`)
+ * pinned to 3200 at once. Two QA runs on the same port do not fail; they sweep
+ * **each other's pages** and report green.
+ *
+ * `catalog/ports.json` assigns this product 3230 (`advisory.proposed`), with
+ * 3200 left to the baseline and 3300 / 3220 to kits / s1. A product needs its
+ * own slot: the port is a claim of identity, not a scheduling detail.
  *
  * The port is *pinned* rather than left to Next's auto-increment, because
  * auto-increment is how a test run silently ends up talking to a different
  * server than the one it started.
  */
-export const QA_PORT = 3200
+export const QA_PORT = 3230
 
 /** Host the QA server binds to. 127.0.0.1 avoids exposing the dev server. */
 export const QA_HOST = "127.0.0.1"
@@ -96,6 +103,24 @@ export const tolerancePx = 1
  * loose enough to survive sub-pixel rounding.
  */
 export const pointerRatioTolerance = 0.02
+
+/**
+ * Quorum for the style-presence bundle (Factory v1.2 · N3).
+ *
+ * Every route must differ from a same-browser **unstyled baseline** in at least
+ * this many independent style domains — `box-reset` · `type` · `surface` ·
+ * `ink`. A page that matches the browser default in all four is not a styled
+ * page with a bug; it is an unstyled page.
+ *
+ * Why 2 and not 4: 4 would make the gate depend on the product painting every
+ * domain (a product that only resets margins and sets a font would fail while
+ * being perfectly styled). Why not 1: a single differing property is weak
+ * evidence — it is exactly what one stray rule produces.
+ *
+ * Sanity-checked for this product in `tests/style-presence.spec.ts`: the styled
+ * fixture clears 2 channels, the unstyled one clears 0.
+ */
+export const stylePresenceMinChannels = 2
 
 /** Fail the run if any numeric probe cannot be measured. Always leave on. */
 export const failOnUnmeasurableProbe = true

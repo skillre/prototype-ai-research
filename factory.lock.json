@@ -1,0 +1,34 @@
+{
+  "$schema": "./lib/factory-lock.schema.json",
+  "schemaVersion": 1,
+  "factoryVersion": "1.2.0",
+  "baseline": {
+    "repo": "prototype-starter",
+    "commit": "ae07caf76b4848e810ef11049bca5c2c3517cef4",
+    "dirty": false
+  },
+  "generatedAt": "2026-09-15T23:10:00+08:00",
+  "stage": "product",
+  "initContractSha256": "4fbfb804970f65c01a1852dc59bfc666a97d9a17570727112d15703887e3d4a9",
+  "kits": {
+    "lockPath": "lib/kits/kits.lock.json",
+    "registryVersion": "0.1.1",
+    "sourceCommit": "9988c958dd505459912120f2ffcd7cedd8895dae"
+  },
+  "deployment": {
+    "provider": "vercel",
+    "projectName": "prototype-ai-research",
+    "productionBranch": null
+  },
+  "upgradedBy": "dsh · opencode-go-dsv41/deepseek-flash · factory-governance-v1.3",
+  "notes": [
+    "派生来源（可核）：本仓由 prototype-starter v1.1.0 派生，来源 commit ae07caf76b4848e810ef11049bca5c2c3517cef4（`git -C prototype-starter log -1 ae07caf` → 「chore(release): v1.1.0 - Prototype Factory」）。本仓自己的提交 1316496 写明 `Baseline copied from prototype-starter v1.1.0 (ae07caf…) via git archive`，README 第 3 节也写了同一件事。",
+    "dirty=false 是有证据的，不是默认值：`git archive` 导出的是某个 **commit** 的内容，而不是工作副本。逐字节核对了 13 个未改动的 Factory Core 文件（.qa/ax-tree.mjs · .qa/probe-guard.mjs · .qa/playwright-runtime.mjs · scripts/check-qa-port.mjs · scripts/doctor-gate.mjs · scripts/install-kits.mjs · scripts/lib/kits-runtime.mjs · playwright.config.ts · next.config.ts · eslint.config.mjs · tsconfig.json · postcss.config.mjs · components.json），本仓 1316496 的内容与 starter@ae07caf 全部一致 → 这次派生可从那个 commit 复现。",
+    "两个版本轴，不要混：factoryVersion = 1.2.0 是**工厂发布版本**（与 catalog/compatibility.json 的 supportedVersionRange `>=1.1.0 <2.0.0` 同一坐标系；v1.2 是发布 / 在线 QA / init / contract 工具链落地的那一版，本仓本轮补齐的正是它）。治理政策版本是另一个轴：policyVersion = 1.3.0，记在 factory-policy.json 与 AGENTS.md 的 factory-core-policy 管理块里。",
+    "政策 1.3.0 的来源没有 commit SHA，这一点必须说清楚：本次治理升级的唯一上游是 prototype-starter 的**工作副本**。核对时 `git -C prototype-starter status --porcelain` 显示 factory-policy.json / factory.lock.json / lib/factory-policy.schema.json / lib/factory-lock.schema.json / scripts/guard-agent-policy.mjs / scripts/lib/agent-policy.mjs / .github/ 全部是未提交改动（??），AGENTS.md / README.md / docs/release-runbook.md / docs/vercel-bootstrap.md / package.json 是 M。因此不存在任何包含这些文件的 commit——starter HEAD 64d743d（v1.2.0 收尾提交）里没有 factory-policy.json。把 64d743d 写成「政策来源提交」是错的，所以锁里不记它。",
+    "上游 reusable workflow 仍然未知：skillre/prototype-factory-control 不存在（2026-09-15 核实：GitHub API 与网页均 404、本地无此目录、全工作区 grep 0 命中），而根控制面仓 /Users/skillre/ai-prototypes 到 2026-09-15 才有第一个 commit（a3b069b）且**没有 remote**，所以它的 reusable-prototype-ci.yml 无法被任何仓 `uses:` 引用。因此 .github/workflows/ci.yml 保持自包含；一旦真的加上 `uses:` 指向上游，本仓的 factory:agents 门禁要求这条未知记录同步更新。",
+    "部署身份：本仓本地已 link 到一个 Vercel 项目（`.vercel/project.json` 的 projectName = prototype-ai-research，provider = vercel）。`productionBranch` 记 **null**：Vercel CLI 认证已过期，当前无法回读任何项目的 Production Branch（catalog/compatibility.json 的 infrastructure.vercel.cliAuth = expired），而「不知道」不等于可以猜一个 `main`。未创建、未提升、未修改任何部署；本轮没有执行任何部署动作。",
+    "Kits：kits 段的三个值**读自** `lib/kits/kits.lock.json`（不是手抄）：source.kind = source-installation、source.commit = 9988c958…、dirty = false、registryVersion = 0.1.1。已知漂移（记录，不自动修）：catalog/compatibility.json 观测到 registry 最新为 0.2.0，本仓装的是 0.1.1，落后一个 minor。升级只能重跑 `kits add`——`lib/kits/installed/**` 是 Kits-managed，手工 patch 会被整体覆盖。",
+    "这一轮**没有验证**的部分（缺这一项就不算合格交接）：`pnpm qa:online` 从未对任何真实部署运行过（没有可用 URL，也没有用户提供的 bypass secret）；HVA（人工视觉验收）未做，因此本仓不处于任何 READY-TO-RELEASE 状态；`.qa/online-qa.mjs` 只在单元层被测试覆盖（tests/online-qa.spec.ts 用本地 http server 驱动），没有对 Vercel 平台行为做过端到端观察。"
+  ]
+}

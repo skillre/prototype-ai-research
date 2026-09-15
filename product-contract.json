@@ -1,0 +1,101 @@
+{
+  "$schema": "./lib/product-contract.schema.json",
+  "schemaVersion": 1,
+  "invariants": [
+    {
+      "id": "contract.declaration-matches-enforcement",
+      "statement": "任何声明在 product-contract.json 里的不变量都必须有测试登记；任何测试登记的不变量都必须被声明——两个方向都不允许静默缺席。",
+      "enforcement": "test"
+    },
+    {
+      "id": "evidence.all-resolvable",
+      "statement": "每条证据链接都能解析到真实存在的原文片段，且该片段有归属来源；断链必须在读取时暴露，而不是在界面上显示为空。",
+      "enforcement": "test"
+    },
+    {
+      "id": "citation.roundtrip",
+      "statement": "claim → passage 与 passage → claim 必须互为逆映射，且活跃投影与历史投影各自成立。",
+      "enforcement": "test"
+    },
+    {
+      "id": "ai.factual-needs-passage",
+      "statement": "AI 的事实型输出必须携带至少一个可解析的原文片段：没有出处的事实断言不得被构造出来。",
+      "enforcement": "test"
+    },
+    {
+      "id": "contradiction.never-silent",
+      "statement": "存在反驳链接时，反驳永远不得被静默——改写 status 或任何展示字段都不能让一条 contradicts 消失。",
+      "enforcement": "test"
+    },
+    {
+      "id": "finding.confidence-bounded",
+      "statement": "Finding 的置信度不得超过它所引用论断中最弱的那一条：结论不能比证据更强。",
+      "enforcement": "test"
+    },
+    {
+      "id": "verification.unverified-is-not-verified",
+      "statement": "「未发现反驳」与「已验证」是两个独立事实：没有证据的论断可以确实没有反驳，但绝不能因此变成 verified。",
+      "enforcement": "test"
+    },
+    {
+      "id": "stale.invalidates",
+      "statement": "引用了失效来源（stale / missing）的论断，其依据状态必须是 invalidated，不得继续显示为有依据。",
+      "enforcement": "test"
+    },
+    {
+      "id": "deletion.preserves-history",
+      "statement": "撤回不是删除：论断与链接以状态表达，历史投影永远查得到，且每次撤回都必须留下轨迹。",
+      "enforcement": "test"
+    },
+    {
+      "id": "passage.no-orphan",
+      "statement": "被标记为已引用的原文片段必须至少有一条（当前或历史）链接指向它，不允许出现孤儿引用。",
+      "enforcement": "test"
+    },
+    {
+      "id": "count.matches-links",
+      "statement": "界面上的引用计数必须由真实链接重算得到，不得来自任何缓存或独立计数器。",
+      "enforcement": "test"
+    },
+    {
+      "id": "tension.is-derived",
+      "statement": "张力是纯派生事实：处置只改变标记而不改动任何事实字段，且重算两次必须完全一致。",
+      "enforcement": "test"
+    },
+    {
+      "id": "tension.single-source-raised",
+      "statement": "多条引用来自同一份来源时必须升起 single-source 张力，引用条数大于一不能让它消失。",
+      "enforcement": "test"
+    },
+    {
+      "id": "resolved.requires-fact-change",
+      "statement": "把张力标记为「已解决」必须伴随一次真实的事实变更；只改状态字段的 resolved 必须被拒绝。",
+      "enforcement": "test"
+    },
+    {
+      "id": "disposition.writes-trace",
+      "statement": "处置与轨迹原子同写：成功的处置一定留下一条指向该张力、且同时保留了出口与理由的轨迹。",
+      "enforcement": "test"
+    },
+    {
+      "id": "ai-reviewer.cannot-mutate",
+      "statement": "AI Reviewer 只能说话：采纳与驳回都不得改动任何业务事实，也不得删除输出。",
+      "enforcement": "test"
+    },
+    {
+      "id": "evidence-link.no-duplicate",
+      "statement": "同一 (claim, passage, stance) 不得存在两条活跃链接；重复写入被拒绝，且不留下半个已改动的状态。",
+      "enforcement": "test"
+    },
+    {
+      "id": "link-write.recomputes-tensions",
+      "statement": "证据链接写入后张力必须重新推导：缺口自己消失、新缺口自己出现，没有任何代码去增删张力。",
+      "enforcement": "test"
+    },
+    {
+      "id": "resolved.ui-reachable",
+      "statement": "「已解决」必须可达：事实改变 → 缺口消失 → resolved 合法 → 投影非空，四步缺一不可。",
+      "enforcement": "test"
+    }
+  ]
+}

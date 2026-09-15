@@ -19,9 +19,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: { default: "原型工作台 Prototype Starter", template: "%s · 原型工作台" },
+  title: { default: "研究工作台 AI Research", template: "%s · 研究工作台" },
   description:
-    "面向 AI Agent 的高保真交互原型 Starter：Next.js + shadcn/ui + Motion + Zustand + Playwright。",
+    "AI 研究论证工作台：把论断、原文片段与来源连成一条可以逐条核对的纵向论证链。",
 };
 
 // 在水合前应用主题 class，避免闪烁。

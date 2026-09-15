@@ -8,6 +8,11 @@
  *
  * Every probe returns a plain JSON-serialisable value. None of them decide
  * pass/fail — the sweep does that, so the thresholds stay visible in one place.
+ *
+ * The style-presence probe lives next door in `./style-presence.mjs` rather than
+ * here, because it is the one probe that cannot be interpreted alone: it is a
+ * *differential* against a browser-default baseline rendered by the sweep, so it
+ * ships with its comparator and its channel definitions.
  */
 
 /**

@@ -37,6 +37,7 @@ import {
 } from "../lib/research/operations"
 import { constructAiOutput, mayEnterFinding } from "../lib/research/ai-reviewer"
 import { validateSourceIndex } from "../lib/research/sources"
+import { invariant } from "./support/product-contract"
 
 /**
  * 拆开处置结果。
@@ -102,6 +103,20 @@ const P_NAMEPLATE = "psg-equipment-nameplate"
 /* -------------------------------------------------------------------------- */
 
 test.describe("1 · evidence.all-resolvable", () => {
+  /**
+   * 不变量登记（Factory v1.2 · F11）。
+   *
+   * 每一条 `invariant()` 都写在**持有它的那个 `test.describe` 内部**：登记紧挨着它的测试，
+   * 而不是集中堆在文件顶部——`pnpm factory:contract` 核对的是「声明 ↔ 登记」，一个人读到的
+   * 也应该是同一组配对。
+   *
+   * body 是空的，测试留在原处、没有搬进来。这是**刻意的**：
+   *   - `N · id` 形式的标题是这套不变量自己的阅读顺序，把 18 个 describe 的内容整体缩进一层
+   *     会重排 1300 行，让 `git diff` 再也读不出「本轮只加了登记」；
+   *   - 更重要的是：helper 从不声称能验证 body 里那些测试**真的**守住了这句话——没有任何机器
+   *     能验证「测试测的是不是这条不变量」。它验证的是「这条不变量有没有一个正式的家」。
+   */
+  invariant("evidence.all-resolvable", "每条证据链接都能解析到真实存在的片段，且片段有所属来源", () => {})
   test("每条证据链接都能解析到真实存在的片段，且片段有所属来源", () => {
     expect(unresolvableEvidence(freshResearch())).toEqual([])
   })
@@ -160,6 +175,7 @@ function roundtripHolds(data: ResearchData, includeRetired: boolean): boolean {
 }
 
 test.describe("2 · citation.roundtrip", () => {
+  invariant("citation.roundtrip", "claim → passage 与 passage → claim 互为逆映射", () => {})
   test("两个方向严格相等（活跃投影与历史投影各自成立）", () => {
     const data = freshResearch()
     expect(roundtripHolds(data, false)).toBe(true)
@@ -200,6 +216,7 @@ test.describe("2 · citation.roundtrip", () => {
 /* -------------------------------------------------------------------------- */
 
 test.describe("3 · ai.factual-needs-passage", () => {
+  invariant("ai.factual-needs-passage", "AI 的事实型输出必须携带可解析的原文片段", () => {})
   test("带可解析片段的 AI 事实输出可以被构造", () => {
     const data = freshResearch()
     const result = constructAiOutput(data, {
@@ -249,6 +266,7 @@ test.describe("3 · ai.factual-needs-passage", () => {
 /* -------------------------------------------------------------------------- */
 
 test.describe("4 · contradiction.never-silent", () => {
+  invariant("contradiction.never-silent", "反驳永远不得被静默", () => {})
   test("存在反驳时 hasContradiction 为 true", () => {
     const verification = projectClaimVerification(freshResearch(), C_CONTESTED)
     expect(verification.hasContradiction).toBe(true)
@@ -280,6 +298,7 @@ test.describe("4 · contradiction.never-silent", () => {
 /* -------------------------------------------------------------------------- */
 
 test.describe("5 · finding.confidence-bounded", () => {
+  invariant("finding.confidence-bounded", "Finding 的置信度不超过所引用论断里最弱的那一条", () => {})
   test("Finding 的置信度不超过所引用论断里最弱的那一条", () => {
     const data = freshResearch()
     for (const finding of data.findings) {
@@ -311,6 +330,7 @@ test.describe("5 · finding.confidence-bounded", () => {
 /* -------------------------------------------------------------------------- */
 
 test.describe("6 · unverified ≠ verified", () => {
+  invariant("verification.unverified-is-not-verified", "「未发现反驳」不等于「已验证」", () => {})
   test("「未发现反驳」与「已验证」是两个独立字段", () => {
     const data = freshResearch()
     const unsupported = projectClaimVerification(data, C_UNSUPPORTED)
@@ -347,6 +367,7 @@ test.describe("6 · unverified ≠ verified", () => {
 /* -------------------------------------------------------------------------- */
 
 test.describe("7 · stale.invalidates", () => {
+  invariant("stale.invalidates", "失效来源让论断的依据状态变为 invalidated", () => {})
   test("引用了失效来源的论断，依据状态为 invalidated", () => {
     const data = freshResearch()
     expect(deriveClaimBasisStatus(data, C_LOW_QUALITY)).toBe("invalidated")
@@ -374,6 +395,7 @@ test.describe("7 · stale.invalidates", () => {
 /* -------------------------------------------------------------------------- */
 
 test.describe("8 · deletion.preserves-history", () => {
+  invariant("deletion.preserves-history", "撤回不是删除，历史投影完整保留", () => {})
   test("夹具里已撤回的论断，其论断与链接在历史投影里完整保留", () => {
     const data = freshResearch()
 
@@ -435,6 +457,7 @@ test.describe("8 · deletion.preserves-history", () => {
 /* -------------------------------------------------------------------------- */
 
 test.describe("9 · passage.no-orphan", () => {
+  invariant("passage.no-orphan", "被引用过的片段不出现孤儿", () => {})
   test("每段被引用过的原文片段，都至少有一条（当前或历史）链接", () => {
     const data = freshResearch()
     const orphans = data.passages
@@ -482,6 +505,7 @@ test.describe("9 · passage.no-orphan", () => {
 /* -------------------------------------------------------------------------- */
 
 test.describe("10 · count.matches-links", () => {
+  invariant("count.matches-links", "引用计数由真实链接重算", () => {})
   test("引用计数等于真实链接重算结果", () => {
     const data = freshResearch()
     for (const claim of data.claims) {
@@ -514,6 +538,7 @@ test.describe("10 · count.matches-links", () => {
 /* -------------------------------------------------------------------------- */
 
 test.describe("11 · tension.is-derived", () => {
+  invariant("tension.is-derived", "张力是派生事实，处置不改动事实字段", () => {})
   test("重算是纯函数：两次调用结果完全一致", () => {
     const data = freshResearch()
     expect(deriveTensions(data)).toEqual(deriveTensions(data))
@@ -592,6 +617,7 @@ test.describe("11 · tension.is-derived", () => {
 /* -------------------------------------------------------------------------- */
 
 test.describe("12 · tension.single-source-raised", () => {
+  invariant("tension.single-source-raised", "单一来源必须升起 single-source 张力", () => {})
   test("所有支持只来自一个来源时，必须产生 single-source 张力", () => {
     const data = freshResearch()
     const tensions = deriveTensions(data)
@@ -665,6 +691,7 @@ test.describe("12 · tension.single-source-raised", () => {
  * 「只写状态不校验」的底层入口可以调。
  */
 test.describe("13 · resolved.requires-fact-change", () => {
+  invariant("resolved.requires-fact-change", "resolved 必须伴随一次真实的事实变更", () => {})
   /** 给一条论断补一条支持链接，制造「事实真的变了」。 */
   function withSupportFor(claimId: string, data: ResearchData): ResearchData {
     return {
@@ -852,6 +879,7 @@ test.describe("13 · resolved.requires-fact-change", () => {
 /* -------------------------------------------------------------------------- */
 
 test.describe("14 · 处置与轨迹原子同写", () => {
+  invariant("disposition.writes-trace", "处置与轨迹原子同写", () => {})
   test("成功的处置一定留下一条轨迹，且指向那条张力", () => {
     const data = freshResearch()
     const tensionId = tensionIdFor("single-source", C_SINGLE_SOURCE)
@@ -965,6 +993,7 @@ test.describe("夹具覆盖度", () => {
  * 这条测试会在那一刻失败，而不是在产品开始撒谎之后才被发现。
  */
 test.describe("15 · AI 不得改动业务事实", () => {
+  invariant("ai-reviewer.cannot-mutate", "AI 不得改动任何业务事实", () => {})
   /** 除 trace 外逐字段全等。 */
   function withoutTrace(data: ResearchData) {
     const { trace: _trace, ...rest } = data
@@ -1082,6 +1111,7 @@ test.describe("15 · AI 不得改动业务事实", () => {
 /* -------------------------------------------------------------------------- */
 
 test.describe("16 · evidence-link.no-duplicate", () => {
+  invariant("evidence-link.no-duplicate", "同一 (claim, passage, stance) 不得重复", () => {})
   /** 一条可用的片段与一条可用的论断。数据集里它们本来**没有**关联。 */
   const PASSAGE = "psg-summary-cost"
   const CLAIM = "clm-cost-inflection"
@@ -1211,6 +1241,7 @@ test.describe("16 · evidence-link.no-duplicate", () => {
 })
 
 test.describe("17 · link-write.recomputes-tensions", () => {
+  invariant("link-write.recomputes-tensions", "链接写入后张力重新推导", () => {})
   const UNSUPPORTED = tensionIdFor("unsupported-claim", "clm-cost-inflection")
 
   test("补一条支持引用之后，缺口**自己**消失——没有任何代码去删它", () => {
@@ -1279,6 +1310,7 @@ test.describe("17 · link-write.recomputes-tensions", () => {
 })
 
 test.describe("18 · resolved-ui-reachable", () => {
+  invariant("resolved.ui-reachable", "resolved 在投影里可达", () => {})
   const UNSUPPORTED = tensionIdFor("unsupported-claim", "clm-cost-inflection")
 
   /**

@@ -57,18 +57,34 @@ lib/research/
   dataset.ts      确定性 mock 数据集
 ```
 
-见 `AGENTS.md` 的「领域层」一节，以及 `tests/invariants.spec.ts` 里那 12 条不变量。
+见 `AGENTS.md` 的「领域层」一节，以及 `tests/invariants.spec.ts` 里那 18 条不变量
+（机器可读 id 登记在 `product-contract.json`，由 `pnpm factory:contract` 双向核对）。
 
 ---
 
 # Factory baseline
 
 This repo is a product built **on** the Prototype Factory. The sections below describe the
-Factory mechanisms that came with the baseline (v1.1.0).
+Factory mechanisms that came with the baseline (派生自 v1.1.0，v1.2 工具链与 v1.3 治理政策
+已在 `chore(factory): adopt governance policy v1.3` 中补齐)。
 
 It is a **Factory**: it defines *how a prototype is produced*. It deliberately does **not**
 define what a prototype looks like — that belongs to **Prototype Kits**, chosen per product
 through a Visual Manifest.
+
+## Governance（这棵树归哪一版工厂管）
+
+| 事实 | 值 | 在哪里 |
+|---|---|---|
+| 治理政策 | **1.3.0** | `factory-policy.json` 的 `policyVersion`；`AGENTS.md` 的 `factory-core-policy` 管理块逐字渲染自它 |
+| 工厂版本（锁） | **1.2.0** | `factory.lock.json` 的 `factoryVersion` —— 与政策版本是**两个轴** |
+| 派生来源 | prototype-starter v1.1.0 @ `ae07caf` | `factory.lock.json` 的 `baseline` |
+| 初始化 stage | **product** | `init-contract.json`，与锁里的 `stage` 由 `pnpm factory:agents` 逐字对账 |
+| CI | 质量门 only，自包含，无 Vercel CLI/token | `.github/workflows/ci.yml` |
+| QA 端口 | **3230** | `.qa/qa.config.mjs` 的 `QA_PORT`（3200 是 baseline 的槽位） |
+
+锁有两种形状（baseline 治理锁 / 产品锁），权威定义在根控制面
+`contracts/factory-lock.schema.json`；本仓是产品，用产品形状。
 
 ## Quick start
 
@@ -77,7 +93,7 @@ pnpm install
 pnpm exec playwright install chromium   # first e2e / QA run only
 
 pnpm dev          # http://localhost:3000 — neutral demo at /demo
-pnpm check        # lint + typecheck + test + build + qa
+pnpm check        # factory:agents + lint + typecheck + test + build + qa
 pnpm build        # production build (Turbopack)
 ```
 
@@ -88,8 +104,8 @@ v1.0.0 worked, but it had one systemic flaw: **product identity lived in shared 
 - `components/layout/sidebar.tsx` fell back to one product's nav, brand, user, and a literal
   `progress: 64`.
 - `components/layout/top-nav.tsx` imported `@/stores/dashboard-store` as its default data
-  source and fell back to another product's account (`陈美雅 / meiya.chen@zhiwu.cn`) — so the
-  neutral `/demo` page displayed the CRM's account identity.
+  source and fell back to another product's account identity — so the
+  neutral `/demo` page displayed the CRM Reference Sample's account as if it were the product's.
 - `AGENTS.md` and this README documented one product's art direction — "Design System V4 —
   AI Sales Command Center" — as if it were the Factory's own rule.
 - Playwright ran on port 3000 with `reuseExistingServer` on, which adopts *any* server that
@@ -298,9 +314,14 @@ pnpm lint              # ESLint
 pnpm typecheck         # next typegen + tsc --noEmit
 pnpm test              # Playwright (port guard + self-managed server)
 pnpm build             # production build (Turbopack)
-pnpm qa                # Browser QA sweep
-pnpm check             # all five, in order
+pnpm qa                # Browser QA sweep (port 3230, self-managed server)
+pnpm qa:online         # Online QA (REMOTE observer: sweeps an existing URL; never deploys, never creates a token)
+pnpm check             # factory:agents + the five gates above, in order
 
+pnpm factory:agents    # agent-policy gate (managed block ↔ factory-policy.json; --print-block syncs it)
+pnpm factory:init      # initialization boundary (stage, identity residue, 0-scan)
+pnpm factory:contract  # product semantic invariants: declared ↔ registered, both directions
+pnpm factory:deploy    # deployment authorization & identity (preflight / verify / access / actions)
 pnpm factory:manifest  # validate visual-manifest.json
 pnpm factory:kits      # install Kits assets from the manifest (dry-run by default)
 pnpm qa:doctor         # Kits doctor gate
@@ -308,6 +329,10 @@ pnpm qa:doctor         # Kits doctor gate
 
 > `pnpm test` and `pnpm qa` cannot run at the same time: Next 16's dev server takes a
 > **per-project** lock (`.next/dev/lock`), not a per-port one.
+>
+> `pnpm factory:agents` is the **first** item of `pnpm check`, and that order is machine-checked.
+> A policy gate that is not wired into the aggregate script is a gate that runs when someone
+> remembers to run it.
 
 ## Stack notes
 

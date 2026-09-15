@@ -46,6 +46,33 @@ Product  →  adapters/  →  installed/
 
 **唯一的合法例外**是适配层自己。适配层存在的意义就是引用 `installed/`；Kits 的 `boundary` 检查也因此豁免它。所以「产品代码零直接引用」和「`boundary` 必须通过」这两句话并不矛盾，而是同一条规则的两半。
 
+### 2b. 三层，而不是两层（v1.2 · N2）
+
+「产品代码不得 import `installed/*`」是这条规则的**一半**。真正的判据是：
+
+> **产品逻辑不得知道任何一个具体的 Kits 资产身份。**
+
+按文件所在的位置分成三层，`pnpm test` 里的 Kits seam gate 就是这么扫的：
+
+| 层 | 路径 | 资产 id |
+|---|---|---|
+| **Tier 1 · Kits-managed** | `lib/kits/installed/**` · `lib/kits/.kits/**` · `lib/kits/kits.lock.json` | 合法——它们的职责就是知道 |
+| **Tier 2 · adapter seam** | `lib/kits/adapters/**` | 合法——这一层的全部工作就是把资产 id 翻译成产品稳定名（`style.ts` 再导出 `style-instrument.css`） |
+| **Tier 3 · product code** | `app/**` · `components/**` · `hooks/**` · `stores/**` · `scripts/**` · `lib/**`（`lib/kits/**` 除外） | **不得出现**，包括通过生成出来的、以资产名命名的 adapter |
+
+于是合法依赖方向只有一条：
+
+```
+Product → 中性 adapter → 生成的 adapter → installed
+```
+
+`@/lib/kits/installed/insight-reveal` 与 `@/lib/kits/adapters/insight-reveal` 在 Tier 3 里**都是违规**：
+「扫描范围太宽」的修法是**把范围改对**，不是把规则改弱。
+
+扫描带 `scanned > 0` 守卫：一个产品源根都没找到时**判 FAIL**，不是判通过。注释在扫描前被剥离
+（v1.2 起统一走 `stripComments`）——一个产品在自己的设计记录里写下资产名，不应该被自己的门拦下。
+派生产品的执行清单见 `docs/product-initialization.md` 第 9 步。
+
 ### 3. 升级路径
 
 如果 `installed/` 已经更新，但适配层还是旧模板：
