@@ -139,7 +139,11 @@ export function loadManifest(projectRoot, explicitPath) {
  * with the Kits repo absent (that is the whole point of Source Installation), so
  * callers report `upstream-unavailable` rather than erroring.
  */
-export function resolveKitsRoot({ explicit, projectRoot }) {
+/**
+ * @param {{ explicit?: string, projectRoot?: string }} [options]
+ */
+export function resolveKitsRoot({ explicit, projectRoot } = {}) {
+  if (!projectRoot) throw new Error("resolveKitsRoot 需要 projectRoot")
   const candidates = []
   if (explicit) candidates.push(isAbsolute(explicit) ? explicit : resolve(projectRoot, explicit))
   const fromEnv = process.env[KITS_ROOT_ENV_VAR]
@@ -216,6 +220,151 @@ export function crossCheckManifest(manifest, registry) {
     }
   }
   return issues
+}
+
+/**
+ * Load a Style Pack's own manifest from the Kits checkout.
+ *
+ * The registry entry carries `manifest: "styles/<pack>/manifest.json"`, and that
+ * file is where the pack states its own machine-readable profile — `motion.language`,
+ * `profile.density`, `profile.motionLanguage`. Reading it is what makes F2
+ * checkable at all: without it, `motionDirection` is a word nobody compares to
+ * anything.
+ *
+ * Returns `{ ok: false, reason }` rather than throwing: "the pack manifest is
+ * not reachable" is a state the caller must be able to *report*, not swallow.
+ */
+export function loadPackManifest(kitsRoot, registry, stylePackId) {
+  const asset = registry.assets.find(
+    (entry) => entry.id === stylePackId && entry.type === "style",
+  )
+  if (!asset) {
+    return { ok: false, reason: "not-in-registry", detail: `registry 里没有 style 资产 \`${stylePackId}\`` }
+  }
+  if (typeof asset.manifest !== "string") {
+    return {
+      ok: false,
+      reason: "no-manifest-path",
+      detail: `registry 里的 \`${stylePackId}\` 没有声明 manifest 路径`,
+    }
+  }
+  const path = join(kitsRoot, asset.manifest)
+  const read = readJsonFile(path)
+  if (!read.ok) {
+    return {
+      ok: false,
+      reason: read.reason === "missing" ? "missing" : "malformed",
+      path,
+      detail: `无法读取 pack manifest：${path}`,
+    }
+  }
+  return { ok: true, path, value: read.value, asset }
+}
+
+/** Read a dotted path out of a pack manifest, or `undefined`. */
+function readPath(value, dotted) {
+  let node = value
+  for (const key of dotted.split(".")) {
+    if (!node || typeof node !== "object") return undefined
+    node = node[key]
+  }
+  return typeof node === "string" && node.trim() !== "" ? node : undefined
+}
+
+/**
+ * Level 3 — compare the manifest's declared motion / density against what the
+ * installed pack actually says about itself.
+ *
+ * Three outcomes, and the third is the one that matters:
+ *
+ *   `verified`      the pack exposes the field and the manifest agrees;
+ *   `recorded`      they disagree, and a matching `deviations[]` entry says why.
+ *                   That is the intended path, not a failure — F1 exists because
+ *                   the third prototype diverged and had nowhere to record it;
+ *   `unverifiable`  the pack does not expose the field (or is not reachable).
+ *                   Reported as such. **Never folded into "verified"**: a check
+ *                   that did not run must not read as a check that passed.
+ *
+ * A mismatch with no recorded deviation is an error: either the decision was
+ * never made, or it was made and not written down.
+ */
+/**
+ * @param {Record<string, unknown>} manifest
+ * @param {Record<string, any>} packManifest
+ * @returns {{
+ *   status: "verified" | "unverifiable" | "mismatch",
+ *   issues: Array<{path: string, code: string, message: string}>,
+ *   checked: Array<{
+ *     label: string, field: string, axis: string,
+ *     packPath: string, packLabel: string,
+ *     packValue: string, declared: string, recorded?: boolean,
+ *   }>,
+ *   unverifiable: Array<{label: string, field: string, reason: string}>,
+ * }}
+ */
+export function crossCheckPackProfile(manifest, packManifest) {
+  const checks = [
+    {
+      label: "motionDirection",
+      field: "motionDirection",
+      axis: "motion",
+      packPath: "motion.language",
+      packLabel: "motion.language",
+    },
+    {
+      label: "density",
+      field: "density",
+      axis: "density",
+      packPath: "profile.density",
+      packLabel: "profile.density",
+    },
+  ]
+
+  /** @type {Array<{path: string, code: string, message: string}>} */
+  const issues = []
+  /** @type {Array<{label: string, field: string, axis: string, packPath: string, packLabel: string, packValue: string, declared: string, recorded?: boolean}>} */
+  const checked = []
+  /** @type {Array<{label: string, field: string, axis: string, reason: string}>} */
+  const unverifiable = []
+
+  const deviations = Array.isArray(manifest.deviations) ? manifest.deviations : []
+
+  for (const check of checks) {
+    const packValue = readPath(packManifest, check.packPath)
+    const declared = manifest[check.field]
+    if (!packValue) {
+      unverifiable.push({ ...check, reason: `pack manifest 没有 \`${check.packLabel}\`` })
+      continue
+    }
+    checked.push({ ...check, packValue, declared })
+    if (typeof declared !== "string") continue
+    if (declared.toLowerCase() === packValue.toLowerCase()) continue
+
+    const recorded = deviations.find(
+      (entry) =>
+        entry &&
+        entry.axis === check.axis &&
+        typeof entry.to === "string" &&
+        entry.to.toLowerCase() === declared.toLowerCase(),
+    )
+    checked[checked.length - 1].recorded = Boolean(recorded)
+    if (recorded) continue
+
+    issues.push({
+      path: check.field,
+      code: "pack/profile-mismatch",
+      message:
+        `\`${check.field}\` = \`${declared}\`，但 pack \`${packManifest.id}\` 的 ${check.packLabel} 是 \`${packValue}\`。` +
+        ` 要么改成 \`${packValue}\`，要么在 deviations 里记一条 axis="${check.axis}"、to="${declared}" 的偏离并写明理由。`,
+    })
+  }
+
+  const status =
+    issues.length > 0 ? "mismatch" : unverifiable.length > 0 && checked.length === 0
+      ? "unverifiable"
+      : "verified"
+
+  return { status, issues, checked, unverifiable }
 }
 
 /**

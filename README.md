@@ -15,13 +15,19 @@
 
 | | |
 |---|---|
-| Style Pack | `instrument`（**有意偏离**：产品密度是 `medium`，pack 默认 `high`） |
+| Style Pack | `instrument` |
 | Signature Components | `insight-reveal` · `data-cursor` |
 | Effects | *(none — 本产品要验证的是严肃、可核查的研究工作台，不是 cyber/terminal aesthetic)* |
-| Motion | `precise-structural` |
-| Density | `medium` |
+| Motion | `precise-structural`（**有意偏离**：pack 的 `motion.language` 是 `precise`） |
+| Density | `medium`（**有意偏离**：pack 的 `profile.density` 是 `high`） |
 
-权威来源是 `visual-manifest.json`。校验：`pnpm factory:manifest --kits ../prototype-kits`。
+两条偏离都记在 `visual-manifest.json` 的 `deviations` 里，各带理由与来源——它们原本只活在
+`components/research/research-shell.css` 的注释里（v1.1 的 Manifest 没有承载偏离的字段，
+机器看起来和一次笔误没有区别）。签名组件上限**没有声明**：那是人的决定，Factory 不代填。
+
+权威来源是 `visual-manifest.json`。校验：`pnpm factory:manifest --kits ../prototype-kits`
+（L1 结构 + L2 自洽 + L3 与 pack 的 profile 比对）。**不带 `--kits` 时找不到 registry 就只做
+L1/L2，并打印 `[upstream-unavailable]`**——那是「没比对」，不是「比对通过」。
 
 ## Naming
 
@@ -82,9 +88,15 @@ through a Visual Manifest.
 | 初始化 stage | **product** | `init-contract.json`，与锁里的 `stage` 由 `pnpm factory:agents` 逐字对账 |
 | CI | 质量门 only，自包含，无 Vercel CLI/token | `.github/workflows/ci.yml` |
 | QA 端口 | **3230** | `.qa/qa.config.mjs` 的 `QA_PORT`（3200 是 baseline 的槽位） |
+| Visual Manifest | **verified**（对着 registry 0.2.0 真比对） | `visual-manifest.json` + `pnpm factory:manifest --kits ../prototype-kits` |
+| 已知未完成项 | **1 个**：F5 / N1 迁移，`pnpm test` 里表现为 **1 skipped** | `AGENTS.md`「已知未完成项」 |
 
 锁有两种形状（baseline 治理锁 / 产品锁），权威定义在根控制面
 `contracts/factory-lock.schema.json`；本仓是产品，用产品形状。
+
+> **skip 不是 pass。** 那一项未完成的迁移在测试里是 `test.fixme`（报告为 skipped）。发布证据里
+> 不许把这次 skip 记成「test 门禁全绿」；`tests/init-boundary.spec.ts` 有一条不会被跳过的测试
+> 钉住它——删掉 fixme 会让它失败。
 
 ## Quick start
 
@@ -316,13 +328,13 @@ pnpm test              # Playwright (port guard + self-managed server)
 pnpm build             # production build (Turbopack)
 pnpm qa                # Browser QA sweep (port 3230, self-managed server)
 pnpm qa:online         # Online QA (REMOTE observer: sweeps an existing URL; never deploys, never creates a token)
-pnpm check             # factory:agents + the five gates above, in order
+pnpm check             # factory:agents + factory:manifest + the five gates above, in order
 
 pnpm factory:agents    # agent-policy gate (managed block ↔ factory-policy.json; --print-block syncs it)
+pnpm factory:manifest  # visual manifest: L1 shape + L2 self-consistency (+ L3 upstream when a registry is reachable)
 pnpm factory:init      # initialization boundary (stage, identity residue, 0-scan)
 pnpm factory:contract  # product semantic invariants: declared ↔ registered, both directions
 pnpm factory:deploy    # deployment authorization & identity (preflight / verify / access / actions)
-pnpm factory:manifest  # validate visual-manifest.json
 pnpm factory:kits      # install Kits assets from the manifest (dry-run by default)
 pnpm qa:doctor         # Kits doctor gate
 ```
@@ -333,6 +345,14 @@ pnpm qa:doctor         # Kits doctor gate
 > `pnpm factory:agents` is the **first** item of `pnpm check`, and that order is machine-checked.
 > A policy gate that is not wired into the aggregate script is a gate that runs when someone
 > remembers to run it.
+>
+> `pnpm factory:manifest` has two modes and names which one it used. With `--kits <path>` (or a
+> discoverable sibling checkout) it really crosses the manifest against the registry **and** the
+> pack's own profile — `status: verified`. Without one it still runs L1/L2 and prints
+> `[upstream-unavailable]`, saying in as many words that nothing upstream was compared. The word
+> `verified` only ever comes from the validator, never from a caller. In CI the registry comes from
+> a **pinned** `skillre/prototype-kits` checkout when `KITS_REPO_TOKEN` is configured, and the honest
+> mode carries a warning annotation otherwise.
 
 ## Stack notes
 

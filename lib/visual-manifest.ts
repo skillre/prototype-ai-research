@@ -41,6 +41,59 @@ export const VISUAL_MANIFEST_FILENAME = "visual-manifest.json"
 export const KITS_ROOT_ENV_VAR = "KITS_ROOT"
 
 /**
+ * The axes an intentional deviation may be recorded on.
+ *
+ * Closed on purpose. `density` and `motion` are linked to a manifest field (see
+ * `LINKED_DEVIATION_AXES`); the rest are recorded but not cross-checked, because
+ * the Factory has nothing to check them against. A typo that produced a new axis
+ * would be a decision that looks recorded and is not, so an unknown axis is an
+ * error rather than an accepted free-form string.
+ */
+export const DEVIATION_AXES = [
+  "density",
+  "motion",
+  "layout",
+  "component-budget",
+  "effect-budget",
+  "typography",
+  "color",
+] as const
+
+export type DeviationAxis = (typeof DEVIATION_AXES)[number]
+
+/**
+ * Axes whose `to` value must agree with a declared manifest field.
+ *
+ * A deviation that contradicts the field it is supposed to explain is worse
+ * than no record at all: it reads as a decision that was taken, while the
+ * manifest says something else.
+ */
+export const LINKED_DEVIATION_AXES: Partial<Record<DeviationAxis, keyof VisualManifest>> = {
+  density: "density",
+  motion: "motionDirection",
+}
+
+/**
+ * One intentional divergence from a Style Pack default.
+ *
+ * This is **a record, not a permission**. It says "we know the pack says X, and
+ * we are doing Y instead, on purpose, for this reason" — which is a different
+ * statement from "we never noticed". That difference is the whole of F1: the
+ * third prototype deviated on density and had nowhere to write it down, so the
+ * deviation existed as a paragraph in a CSS header and as a silent mismatch
+ * against the pack.
+ */
+export interface VisualManifestDeviation {
+  axis: DeviationAxis
+  /** The pack's / default's value. Quoted, so the record is readable alone. */
+  from: string
+  /** What this product does instead. Must not equal `from`. */
+  to: string
+  /** Why. A deviation without a reason is a typo with a longer body. */
+  reason: string
+}
+
+/**
  * A declared visual direction.
  *
  * Every field is required. `firstVisual` and `avoid` are the two that carry the
@@ -71,9 +124,16 @@ export interface VisualManifest {
   stylePack: string
   /**
    * Signature Component ids. Values must resolve to `approved` assets of type
-   * `component`. Count constraints belong to the Kits skill, not to us.
+   * `component`. How MANY a product may carry is the product's own decision,
+   * recorded in `signatureComponentBudget` below — never the Factory's.
    */
   signatureComponents: string[]
+  /**
+   * How many signature components this product allows itself. Optional: the
+   * Factory does not impose a number, it enforces the number the product stated.
+   * `0` is legal, and a different decision from "we forgot".
+   */
+  signatureComponentBudget?: number
   /**
    * Effect Pack ids. Values must resolve to `approved` assets of type `effect`.
    * May legitimately be empty — an empty array is a decision, and a different
@@ -82,7 +142,8 @@ export interface VisualManifest {
   effects: string[]
   /**
    * Motion language id (e.g. `restrained` / `atmospheric` / `precise`).
-   * Must agree with the chosen pack's `motionLanguage`.
+   * Must agree with the chosen pack's `motionLanguage`, or carry a recorded
+   * `motion` deviation saying why not.
    */
   motionDirection: string
   /** Information density id. Must agree with the chosen pack's `density`. */
@@ -93,6 +154,12 @@ export interface VisualManifest {
    * constrains what the default aesthetic would otherwise produce.
    */
   avoid: string[]
+  /**
+   * Where this product knowingly diverges from its pack's defaults, and why.
+   * A deviation is a record, not an approval: it makes a divergence *visible*,
+   * and it can never re-open a door `avoid` has closed.
+   */
+  deviations?: VisualManifestDeviation[]
 }
 
 /** Severity of a manifest problem. `error` blocks; `warning` is advisory. */
@@ -218,7 +285,31 @@ const KNOWN_FIELDS = new Set<string>([
   "$schema",
   ...REQUIRED_STRING_FIELDS,
   ...REQUIRED_ARRAY_FIELDS,
+  "deviations",
+  "signatureComponentBudget",
 ])
+
+/** Fields whose value is a *vocabulary identifier*, not free text. */
+const IDENTIFIER_FIELDS = ["motionDirection", "density"] as const
+
+/**
+ * Minimum meaningful length of a deviation `reason`.
+ *
+ * A deviation is the one place the manifest says "we are deliberately not doing
+ * what the pack says". "ok" / "n/a" / "-" is not a reason; it is the record of a
+ * decision nobody made.
+ */
+const DEVIATION_REASON_MIN_LENGTH = 8
+
+/** Is this a lowercase identifier token (`medium`, `precise-structural`)? */
+export function isIdentifierToken(value: unknown): value is string {
+  return typeof value === "string" && /^[a-z][a-z0-9-]*$/.test(value)
+}
+
+/** Normalise for cross-field comparison: lowercase, punctuation and space gone. */
+function normaliseToken(value: string): string {
+  return value.toLowerCase().replace(/[\s\p{P}\p{S}_]/gu, "")
+}
 
 /**
  * Validate a parsed manifest against the Factory's structural contract.
@@ -333,6 +424,206 @@ export function validateVisualManifest(input: unknown): ManifestValidationResult
       code: "manifest/first-visual-vacuous",
       message:
         "`firstVisual` 必须写出「第一眼看到什么」，而不是印象词（如「现代简洁」「modern, clean」）。写不出这一句，说明视觉方向还没想清楚。",
+    })
+  }
+
+  /*
+   * Vocabulary identifiers (L1).
+   *
+   * The legal *values* come from Kits — the Factory must not enumerate them, or
+   * it becomes a second, staler copy of the registry. What the Factory can and
+   * does check is that these fields are identifiers at all: a sentence, a
+   * number, or an empty string is a malformed decision regardless of which pack
+   * is chosen. Membership is checked upstream, in `crossCheckPackProfile`.
+   */
+  for (const field of IDENTIFIER_FIELDS) {
+    const value = input[field]
+    if (value === undefined || !isNonEmptyString(value)) continue
+    if (!isIdentifierToken(value)) {
+      issues.push({
+        path: field,
+        severity: "error",
+        code: "manifest/invalid-identifier",
+        message:
+          `\`${field}\` 必须是标识符（小写字母开头，只含小写字母、数字与连字符），当前是 ${JSON.stringify(value)}。` +
+          " 可选值由所选 pack 定义，不在 Factory 里枚举——但一个句子或一个数字不是可选值。",
+      })
+    }
+  }
+
+  /* ---- signature component budget ---------------------------------------- */
+
+  const budget = input.signatureComponentBudget
+  if (budget !== undefined) {
+    if (!Number.isInteger(budget) || (budget as number) < 0) {
+      issues.push({
+        path: "signatureComponentBudget",
+        severity: "error",
+        code: "manifest/signature-budget-not-an-integer",
+        message: "`signatureComponentBudget` 必须是非负整数（0 是合法的：一个签名组件都不要）。",
+      })
+    } else if (
+      Array.isArray(input.signatureComponents) &&
+      input.signatureComponents.length > (budget as number)
+    ) {
+      issues.push({
+        path: "signatureComponents",
+        severity: "error",
+        code: "manifest/signature-budget-exceeded",
+        message:
+          `声明了 ${input.signatureComponents.length} 个签名组件，但上限是 ${budget}。` +
+          " 上限是产品自己定的（Factory 不规定所有产品能用几个）——定了就要守。",
+      })
+    }
+  } else {
+    issues.push({
+      path: "signatureComponentBudget",
+      severity: "warning",
+      code: "manifest/signature-budget-undeclared",
+      message:
+        "未声明 `signatureComponentBudget`：Factory 不会替你规定上限，也不会把一个没写下来的上限当成通过。" +
+        " 想让机器守住「最多 2 个」，就把 2 写进去。",
+    })
+  }
+
+  /* ---- intentional deviations -------------------------------------------- */
+
+  const deviations = input.deviations
+  if (deviations !== undefined && !Array.isArray(deviations)) {
+    issues.push({
+      path: "deviations",
+      severity: "error",
+      code: "manifest/deviations-not-an-array",
+      message: "`deviations` 必须是数组（每一项记录一次有意偏离）。",
+    })
+  } else if (Array.isArray(deviations)) {
+    const seenAxes = new Map<string, number>()
+    const avoidTokens = (Array.isArray(input.avoid) ? input.avoid : [])
+      .filter((entry): entry is string => typeof entry === "string")
+      .map(normaliseToken)
+
+    deviations.forEach((entry, index) => {
+      const path = `deviations[${index}]`
+      if (!isPlainObject(entry)) {
+        issues.push({
+          path,
+          severity: "error",
+          code: "manifest/deviation-not-an-object",
+          message: `${path} 必须是一个对象：{ axis, from, to, reason }。`,
+        })
+        return
+      }
+
+      for (const field of ["axis", "from", "to", "reason"] as const) {
+        if (entry[field] === undefined) {
+          issues.push({
+            path: `${path}.${field}`,
+            severity: "error",
+            code: "manifest/deviation-missing-field",
+            message: `${path} 缺少 \`${field}\`。一次偏离必须写清「哪条轴 / 从什么 / 改成什么 / 为什么」。`,
+          })
+        } else if (!isNonEmptyString(entry[field])) {
+          issues.push({
+            path: `${path}.${field}`,
+            severity: "error",
+            code: "manifest/deviation-empty-field",
+            message: `${path}.${field} 必须是非空字符串。`,
+          })
+        }
+      }
+
+      const axis = entry.axis
+      if (isNonEmptyString(axis) && !(DEVIATION_AXES as readonly string[]).includes(axis)) {
+        issues.push({
+          path: `${path}.axis`,
+          severity: "error",
+          code: "manifest/deviation-unknown-axis",
+          message:
+            `未知的 deviation axis：\`${axis}\`。合法取值：${DEVIATION_AXES.join(", ")}。` +
+            " 写错轴名会让一次真实的偏离看起来「记录过了」——所以这里是错误，不是忽略。",
+        })
+      } else if (isNonEmptyString(axis)) {
+        const previous = seenAxes.get(axis)
+        if (previous !== undefined) {
+          issues.push({
+            path: `${path}.axis`,
+            severity: "error",
+            code: "manifest/deviation-duplicate-axis",
+            message: `axis \`${axis}\` 在 deviations[${previous}] 已经出现过。同一条轴只能偏离一次，否则两条记录互相矛盾。`,
+          })
+        } else {
+          seenAxes.set(axis, index)
+        }
+      }
+
+      const from = entry.from
+      const to = entry.to
+      if (isNonEmptyString(from) && isNonEmptyString(to) && normaliseToken(from) === normaliseToken(to)) {
+        issues.push({
+          path: `${path}.to`,
+          severity: "error",
+          code: "manifest/deviation-not-a-deviation",
+          message: `${path} 的 from 与 to 相同（\`${from}\`）——这不是一次偏离，只是一条注释。`,
+        })
+      }
+
+      const reason = entry.reason
+      if (isNonEmptyString(reason) && reason.trim().length < DEVIATION_REASON_MIN_LENGTH) {
+        issues.push({
+          path: `${path}.reason`,
+          severity: "error",
+          code: "manifest/deviation-reason-too-short",
+          message:
+            `偏离理由太短（${reason.trim().length} 字，至少 ${DEVIATION_REASON_MIN_LENGTH} 字）。` +
+            " deviation 的价值全在理由上：没有理由的偏离和下一个人眼里的笔误没有区别。",
+        })
+      }
+
+      /*
+       * A deviation may relax a pack default. It may never re-open a door the
+       * manifest itself closed: `avoid` is the manifest's load-bearing field,
+       * and a "deviation" that points straight at an avoided thing is an
+       * authorisation nobody gave.
+       */
+      if (isNonEmptyString(to) && avoidTokens.length > 0) {
+        const target = normaliseToken(to)
+        const conflicting = avoidTokens.find(
+          (token) => token.length > 0 && (target === token || target.includes(token)),
+        )
+        if (conflicting) {
+          issues.push({
+            path: `${path}.to`,
+            severity: "error",
+            code: "manifest/deviation-contradicts-avoid",
+            message:
+              `${path}.to（\`${to}\`）撞上了本 manifest 的 avoid 条目。` +
+              " deviation 可以偏离 pack 的默认值，但不能重新打开 avoid 已经关上的门。",
+          })
+        }
+      }
+
+      /*
+       * Linked axes must agree with the field they explain. A recorded deviation
+       * that contradicts the manifest's own declared value is worse than no
+       * record: it looks like a decision while saying two different things.
+       */
+      const linkedField =
+        isNonEmptyString(axis) && axis in LINKED_DEVIATION_AXES
+          ? LINKED_DEVIATION_AXES[axis as DeviationAxis]
+          : undefined
+      if (linkedField && isNonEmptyString(to)) {
+        const declared = input[linkedField]
+        if (isNonEmptyString(declared) && normaliseToken(declared) !== normaliseToken(to)) {
+          issues.push({
+            path: `${path}.to`,
+            severity: "error",
+            code: "manifest/deviation-mismatch",
+            message:
+              `${path} 记录 \`${axis}\` 偏离到 \`${to}\`，但 \`${linkedField}\` 声明的是 \`${declared}\`。` +
+              " 两者必须一致——否则 manifest 自己说了两件不同的事。",
+          })
+        }
+      }
     })
   }
 

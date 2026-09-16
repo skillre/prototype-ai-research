@@ -239,8 +239,17 @@ const VALID_MANIFEST = {
 
 test("Visual Manifest: a complete manifest validates", () => {
   const result = validateVisualManifest(VALID_MANIFEST)
-  expect(result.issues).toEqual([])
+  /*
+   * v1.2 separates a **warning** from an error, and the undeclared signature
+   * budget is deliberately the former: the Factory refuses to invent a number
+   * for the product, and equally refuses to read "not written" as a pass — so it
+   * says so out loud instead of returning a clean issue list. Asserting
+   * `issues === []` would now mean asserting that the gate stayed quiet about a
+   * decision nobody made.
+   */
+  expect(result.issues.filter((issue) => issue.severity === "error")).toEqual([])
   expect(result.ok).toBe(true)
+  expect(result.issues.map((issue) => issue.code)).toContain("manifest/signature-budget-undeclared")
 })
 
 test("Visual Manifest: missing required fields are reported", () => {

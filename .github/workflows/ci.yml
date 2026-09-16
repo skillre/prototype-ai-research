@@ -62,6 +62,22 @@
 # this repository shared with the baseline, s1 and kits — see catalog/ports.json.
 # Inside CI the runner is isolated, but the value is pinned anyway: a local and a
 # CI run must mean the same thing.
+#
+# KITS REGISTRY (the manifest gate's upstream source)
+# -------------------------------------------------
+# `pnpm factory:manifest` is only a *verification* when a registry is reachable;
+# without one it can still check shape, self-consistency, deviations and budget,
+# but it must not be described as having compared anything upstream. This
+# workflow therefore has two modes and names which one it used:
+#
+#   - `KITS_REPO_TOKEN` configured → `skillre/prototype-kits` is checked out at a
+#     pinned commit (`.prototype-kits`) and the cross-check runs for real;
+#   - otherwise → the gate runs in honest mode and the step carries a
+#     `upstream-unavailable` warning annotation. A green step here means "L1/L2
+#     passed and the upstream comparison did not happen", which is what it says.
+#
+# The gate NEVER runs in a mode that reports `verified` without an upstream: the
+# status word comes from `scripts/validate-manifest.mjs`, not from this file.
 
 name: CI
 
@@ -129,10 +145,43 @@ jobs:
       - name: Playwright E2E
         run: pnpm test
 
-      # NOTE: `pnpm factory:manifest` is deliberately absent. It validates
-      # `visual-manifest.json` against the Kits registry, and in CI the sibling
-      # `prototype-kits` checkout does not exist — so it would fail for a reason
-      # that has nothing to do with this tree. It stays a local gate.
+      # ---- Visual Manifest gate ----------------------------------------------
+      # Two modes, both explicit, and neither of them a fake PASS:
+      #
+      #   1. WHEN a read token for the sibling Kits repo is configured
+      #      (`KITS_REPO_TOKEN`), the registry is checked out at a **pinned
+      #      commit** — a reproducible source, not "whatever main is today". It
+      #      lands in a subdirectory of the workspace because `actions/checkout`
+      #      refuses paths outside it, and it is checked out *after* lint /
+      #      typecheck / build on purpose: a second source tree must never be
+      #      scanned as if it were this one.
+      #   2. OTHERWISE the gate runs in its honest mode: it prints
+      #      `[upstream-unavailable]` and says in as many words that **no
+      #      upstream comparison was performed**, and the step emits a warning
+      #      annotation so that state shows up in the run summary instead of only
+      #      in the log. The installed state is still checked, by `pnpm qa:doctor`
+      #      above, against `lib/kits/kits.lock.json`.
+      #
+      # Level 1 + level 2 (shape · self-consistency · deviations · budget) run in
+      # both modes: they need no upstream at all.
+      - name: Check out Prototype Kits (pinned) for the manifest cross-check
+        if: ${{ secrets.KITS_REPO_TOKEN != '' }}
+        uses: actions/checkout@v4
+        with:
+          repository: skillre/prototype-kits
+          ref: 0ceb04d94f5d1d540fc0b05b1c17dcf1304c7888
+          token: ${{ secrets.KITS_REPO_TOKEN }}
+          path: .prototype-kits
+
+      - name: Visual manifest gate
+        run: |
+          if [ -f .prototype-kits/registry/assets.json ]; then
+            echo "Kits registry: pinned checkout at .prototype-kits — running the upstream cross-check."
+            pnpm factory:manifest --kits .prototype-kits
+          else
+            echo "::warning title=upstream-unavailable::prototype-kits 未在场（未配置 KITS_REPO_TOKEN）：factory:manifest 只做了 L1/L2（结构 · 自洽 · deviations · budget），**未做上游比对**——stylePack / signatureComponents / effects 是否 approved、pack profile 是否一致，全部未验证。这不是通过。"
+            pnpm factory:manifest
+          fi
 
   browser-qa:
     name: Browser QA (serial)

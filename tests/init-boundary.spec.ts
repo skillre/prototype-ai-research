@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process"
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { dirname, join } from "node:path"
 
@@ -333,6 +333,39 @@ test.describe("route-scoped stylesheet is not orphaned", () => {
 /* -------------------------------------------------------------------------- */
 
 test.describe("F5 · F6 · F7", () => {
+  /**
+   * **A skipped test is not a passing test, and this is the test that says so.**
+   *
+   * The hazard this pin closes is specific: deleting a `test.fixme` makes the
+   * suite report *zero* skips, at which point "499 passed" reads as "everything
+   * is verified" while a whole check has quietly stopped existing. So the debt
+   * must be **either carried visibly or actually paid**:
+   *
+   *   - still unmigrated → F5 must be `test.fixme`, and AGENTS.md must say so;
+   *   - migrated → F5 must be a real assertion again (the pin then demands that
+   *     too, so the fixme cannot linger as a stale excuse).
+   *
+   * This test itself is never skipped. It runs in the green suite.
+   */
+  test("F5 的未完成状态是可见的——fixme 要么在，要么迁移真的做完了", () => {
+    const source = read("tests/init-boundary.spec.ts")
+    const FIXME = 'test.fixme("F5: the Core loading state carries no product composition"'
+    const fixme = source.includes(FIXME)
+    const real = /^ {2}test\("F5: the Core loading state carries no product composition"/m.test(source)
+    const migrated = existsSync(join(ROOT, "app", "_sample", "dashboard-skeleton.tsx"))
+
+    // Exactly one of the two forms — "neither" is the state that hides the gap.
+    expect(fixme !== real, "F5 必须要么是 fixme、要么是真断言，两者都不是就是被删了").toBe(true)
+    expect(fixme, "F5 是 fixme 时，迁移必须确实还没做（app/_sample/ 不应存在）").toBe(!migrated)
+    expect(real, "迁移做完了，F5 就必须变回真正的断言").toBe(migrated)
+
+    // And the debt is written where a human reads it, with the rule attached.
+    const agents = read("AGENTS.md")
+    expect(agents, "AGENTS.md 必须把这份债写成「已知未完成项」").toContain("已知未完成项")
+    expect(agents, "AGENTS.md 必须写明 skip 不是 pass").toContain("skip 不是 pass")
+    expect(agents).toContain("F5 / N1")
+  })
+
   /**
    * F5 is **expected to fail here, and that is stated rather than hidden.**
    *

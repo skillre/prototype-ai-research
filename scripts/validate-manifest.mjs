@@ -25,6 +25,8 @@ import { join } from "node:path"
 import {
   EXIT,
   crossCheckManifest,
+  crossCheckPackProfile,
+  loadPackManifest,
   glyph,
   heading,
   loadKitsRegistry,
@@ -88,7 +90,62 @@ if (!kits) {
   } else {
     const crossIssues = crossCheckManifest(manifest, registry)
     issues.push(...crossIssues)
-    if (crossIssues.length === 0) {
+
+    /*
+     * Level 3 — the pack's own profile.
+     *
+     * Level 1 (`lib/visual-manifest.ts`) checked the *shape* of the decision.
+     * Level 2 checked that the manifest agrees with itself. This is the only
+     * level that can answer "does the declared motion language match the pack
+     * you actually chose?" — and it is possible only because the pack manifest
+     * exposes `motion.language` / `profile.density`.
+     */
+    const packLoaded = loadPackManifest(kits.root, registry, manifest.stylePack)
+    let profileStatus = "unverifiable"
+    if (!packLoaded.ok) {
+      lines.push(
+        `${glyph.warn} pack-profile [unverifiable] ${packLoaded.detail ?? packLoaded.reason}`,
+      )
+      lines.push(
+        "              → motionDirection / density **未与 pack 比对**——这不等于它们一致。",
+      )
+    } else {
+      const profile = crossCheckPackProfile(manifest, packLoaded.value)
+      profileStatus = profile.status
+      for (const check of profile.checked) {
+        if (check.declared.toLowerCase() === check.packValue.toLowerCase()) {
+          lines.push(
+            `${glyph.ok} pack-profile ${check.label}: \`${check.declared}\` == pack \`${check.packValue}\`（${check.packLabel}）`,
+          )
+        } else if (check.recorded) {
+          lines.push(
+            `${glyph.warn} pack-profile [recorded-deviation] ${check.label} \`${check.declared}\` ≠ pack \`${check.packValue}\` — 已在 deviations 里记录理由，不算失败`,
+          )
+        }
+        // A mismatch that is NOT recorded is printed as an error below.
+      }
+      for (const skipped of profile.unverifiable) {
+        lines.push(
+          `${glyph.warn} pack-profile [unverifiable] ${skipped.label}: pack \`${packLoaded.value.id}\` ${skipped.reason}`,
+        )
+      }
+      for (const issue of profile.issues) {
+        lines.push(`              ${glyph.bad} [${issue.code}] ${issue.path} — ${issue.message}`)
+      }
+    }
+
+    if (crossIssues.length > 0 || profileStatus === "mismatch") {
+      status = "invalid"
+      lines.push(`${glyph.bad} upstream-kits [mismatch] registry ${registry.registryVersion}`)
+      for (const issue of crossIssues) {
+        lines.push(`              ${glyph.bad} [${issue.code}] ${issue.path} — ${issue.message}`)
+      }
+    } else if (profileStatus === "unverifiable") {
+      status = "upstream-unavailable"
+      lines.push(
+        `${glyph.warn} upstream-kits [partial] registry ${registry.registryVersion}：id 已比对，**pack profile 未比对**`,
+      )
+    } else {
       status = "verified"
       lines.push(
         `${glyph.ok} upstream-kits [verified] registry ${registry.registryVersion} @ ${kits.root}`,
@@ -96,13 +153,28 @@ if (!kits) {
       lines.push(
         `              stylePack=${manifest.stylePack} · components=[${manifest.signatureComponents.join(", ")}] · effects=[${manifest.effects.join(", ") || "—"}] 全部为 approved 资产。`,
       )
-    } else {
-      status = "invalid"
-      lines.push(`${glyph.bad} upstream-kits [mismatch] registry ${registry.registryVersion}`)
-      for (const issue of crossIssues) {
-        lines.push(`              ${glyph.bad} [${issue.code}] ${issue.path} — ${issue.message}`)
-      }
     }
+  }
+}
+
+/* ---- the decisions themselves, printed so a missing one is visible ------- */
+
+const budget = manifest.signatureComponentBudget
+lines.push(
+  budget === undefined
+    ? `${glyph.warn} decisions     签名组件上限：**未声明**（Factory 不代填，也不把「没写」当通过）`
+    : `${glyph.ok} decisions     签名组件上限：${budget}（当前 ${manifest.signatureComponents.length}）`,
+)
+
+const deviations = Array.isArray(manifest.deviations) ? manifest.deviations : []
+if (deviations.length === 0) {
+  lines.push(`${glyph.ok} decisions     有意偏离：0 条`)
+} else {
+  lines.push(`${glyph.ok} decisions     有意偏离：${deviations.length} 条（记录，不是自动批准）`)
+  for (const deviation of deviations) {
+    lines.push(
+      `              · ${deviation.axis}: \`${deviation.from}\` → \`${deviation.to}\` — ${deviation.reason}`,
+    )
   }
 }
 

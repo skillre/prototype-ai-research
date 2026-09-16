@@ -22,7 +22,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - ✅ Next.js 16 App Router · TypeScript · Tailwind v4 · pnpm
 - ✅ shadcn/ui（**base-nova 风格，基于 Base UI**，而非 Radix）· Motion 13 · Zustand 5 · Recharts 3 · dnd-kit · Playwright
 - ✅ DSH 宿主侧的**多 Subagent 编排**：允许并要求——边界与判据见下方 `factory-core-policy` 管理块。
-- ✅ GitHub Actions **只作为 CI 质量门**（`.github/workflows/ci.yml`）：策略门禁 · 初始化边界 · 语义契约 · Kits doctor · lint · typecheck · build · test · qa。**部署仍然不是 CI 的事**——由 Vercel Git Integration 负责。
+- ✅ GitHub Actions **只作为 CI 质量门**（`.github/workflows/ci.yml`）：策略门禁 · Visual Manifest · 初始化边界 · 语义契约 · Kits doctor · lint · typecheck · build · test · qa。**部署仍然不是 CI 的事**——由 Vercel Git Integration 负责。
 - ❌ 禁止加入 Database / Supabase / Authentication / Docker / Kubernetes / Monorepo / Turborepo / Microservices / Backend service / MCP / Cloudflare / 任何新的 deployment platform。这些以后再处理。
 - ❌ 禁止在**产品应用代码**里引入编排框架或编排运行时——这才是旧版那句「Multi-agent orchestration」真正要守的东西。
 - ❌ 禁止 Vercel API & CLI automation（deployment token / bypass secret / `vercel` 命令自动化）：部署授权是人的决定，不是构建的副作用。
@@ -240,14 +240,43 @@ pnpm qa
 
 ```bash
 pnpm factory:agents    # 策略门禁：编排边界 / 管理块 / schema 关键值 / CI 契约（check 的第一项）
+pnpm factory:manifest  # Visual Manifest：L1 结构 + L2 自洽 +（Kits 在场时）L3 上游比对
 pnpm factory:init      # 初始化边界：stage=product、baseline / sample 身份残留、0-scan
 pnpm factory:contract  # 产品语义不变量：声明 ↔ 测试登记，双向核对
 pnpm qa:doctor         # Kits 安装状态是否可信
 ```
 
-`pnpm check` 会依次跑完 **`pnpm factory:agents`** 加上面五项——**策略门禁是第一项**，
-由 `scripts/guard-agent-policy.mjs` 机器校验（`check` 必须以 `pnpm factory:agents &&` 开头）。
-顺序不是风格：「先过政策，再谈绿」。一个在绿树之外的策略门禁等于没有门禁。
+`pnpm check` 会依次跑完 **`pnpm factory:agents && pnpm factory:manifest`** 加上面五项——
+**策略门禁是第一项**，由 `scripts/guard-agent-policy.mjs` 机器校验（`check` 必须以
+`pnpm factory:agents &&` 开头）。顺序不是风格：「先过政策，再谈绿」。一个在绿树之外的策略门禁等于没有门禁。
+
+### Visual Manifest 的上游比对：两种模式，说清楚哪一种
+
+`pnpm factory:manifest` 只有在**能找到 Kits registry** 时才算一次上游比对。找不到时它照样做
+L1（结构）与 L2（自洽 / deviations / budget），但会打印 `[upstream-unavailable]` 并**明说本次没有比对**——
+`pnpm factory:manifest` 与 `pnpm factory:manifest --kits ../prototype-kits` 因此不是同一句话，
+报告里的 `status` 才是它是哪一种。
+
+```bash
+pnpm factory:manifest --kits ../prototype-kits   # 真比对：registry id 是否 approved + pack profile（L3）
+pnpm factory:manifest                            # 自动发现；找不到 Kits 就是 upstream-unavailable
+```
+
+CI 同样只有这两种模式（`.github/workflows/ci.yml` 的 KITS REGISTRY 一节）：配置了
+`KITS_REPO_TOKEN` 就按**固定 commit** checkout `skillre/prototype-kits` 真比对，否则退化为诚实模式
+并打一条 `upstream-unavailable` warning annotation。**绿 ≠ 比对过**，这句话在 CI 里也是真的。
+
+### 已知未完成项（不是通过）
+
+- **F5 / N1（Core Neutrality 迁移）**：`components/prototype/loading-state.tsx` 仍是 v1.1 的形状
+  （带 `METRIC_DIVIDERS` 的示例性 composition），且本仓没有 `app/_sample/`。规格里对应的那条测试
+  标成 `test.fixme`，所以 `pnpm test` 会显示 **1 skipped**。
+
+> **skip 不是 pass。** `test.fixme` 的语义是「已知没做」，不是「已经通过」；发布证据里
+> **不许**把这次 skip 记成「test 门禁全绿」。`tests/init-boundary.spec.ts` 里有一条**不会被跳过**的
+> 测试钉住这件事——删掉 fixme 会让它失败，所以这份债不能悄悄消失。
+> 做迁移的那一轮（把 Core 的性格移进 `app/_sample/`）应当把它变成真正的断言，而不是继续带着它。
+
 
 ## Kits Ownership Contract
 
@@ -439,20 +468,37 @@ Factory Core **禁止**出现：具体 Style Pack 名、具体签名组件名、
 ### Art Direction Gate（不可跳过）
 
 ```
-Understand → Inspect → Product Model → Visual Direction → Visual Manifest
-→ 【人工 / 显式 Art Direction checkpoint】
+Understand → Inspect → Product Model
+→ Product Semantic Invariants  ← 先定义「绝不能搞错什么」，登记进 product-contract.json
+→ Art Direction Divergence   ← 这个产品为什么不该长得像 Reference Sample / 上一个 Prototype？
+→ Visual Manifest            ← 把决定写下来（含 intentional deviations）
+→ 【Human Art Direction Gate：九问，人工确认】
 → kits add → Build → Invariant tests → Browser QA → Test → Preview
 → Visual Acceptance → Release
 ```
 
+- **Divergence 先于 Manifest。** 在继承任何已有视觉模式之前，先给出 divergence statement：
+  禁止 dashboard hero / 不用 sidebar 作主结构 / 不采用 card grid / mobile 必须重新编排……
+  Starter 与 Style Pack 会施加一个重力场；不说话，产出就会朝它塌下去。它是**人的输入**，不是生成物。
 - **任何业务 Prototype 在 UI 实现前必须先产出 `visual-manifest.json`。**
   没有 Manifest 就开始写 JSX = 违规。`pnpm factory:kits` 会直接拒绝。
+- **与 pack 默认不一致的地方必须记进 `deviations`**（`axis` / `from` / `to` / `reason`）。
+  偏离是**记录，不是自动批准**：它不能绕过 `avoid`，链接轴（`density` / `motion`）还必须与对应字段一致。
+  没记录的偏离 = 下一个人眼里的笔误。
+- **签名组件数量上限由人写进 `signatureComponentBudget`。** Factory 守住你写的数，不替你定数；
+  没写就只是 warning（不假装通过）。0 个是合法决定。
+- **校验分三层**：L1 字段合法性 → L2 Factory 自洽 → L3 与所选 pack 的 profile 比对
+  （`motion.language` / `profile.density`，只在 Kits 在场时）。**L3 没跑就说没跑，不写成 PASS。**
 - **Agent 不能在没有 Manifest 的情况下默认生成 generic AI SaaS visual。**
   默认审美（卡片 + 阴影 + 渐变 + 紫色）会主动回拉，Manifest 就是那道闸门。
 - **Manifest 里 `firstVisual` 与 `avoid` 是强约束**，由校验器强制。
 - **Art Direction checkpoint 是人工决定**：选哪个 pack、第一视觉是什么、不要什么。
   Agent 不能替人做这个决定，也不能不记录就跳过。
 - 详见 `docs/visual-manifest.md`；创作语义见 Kits 的 `skills/visual-direction/SKILL.md`。
+
+- **本产品的现状**：`visual-manifest.json` 里有 **2 条已记录的偏离**（`density`、`motion`），
+  各自带着理由与出处；**签名组件上限未声明**——那是人的决定，Factory 不代填，gate 会以 warning
+  说出来而不是假装通过。上游比对（L3）对着 registry 0.2.0 跑过，状态是 `verified`。
 
 ### 层级与构图（方法，不是配方）
 
@@ -601,13 +647,13 @@ pnpm test              # Playwright E2E（端口守卫 + 自管 server，需先 
 pnpm build             # production build（Turbopack）
 pnpm qa                # Browser QA 全量扫描（自带 server，端口 3230）
 pnpm qa:online         # 在线 QA（REMOTE：扫一个已存在的 URL，不部署、不建 token）
-pnpm check             # factory:agents + lint + typecheck + test + build + qa
+pnpm check             # factory:agents + factory:manifest + lint + typecheck + test + build + qa
 
 pnpm factory:agents    # Agent 策略门禁（管理块 ↔ factory-policy.json；--print-block 同步块）
+pnpm factory:manifest  # Visual Manifest（L1 结构 + L2 自洽；--kits <path> 时做 L3 上游比对）
 pnpm factory:init      # 初始化边界（baseline / product、身份残留、0-scan）
 pnpm factory:contract  # 产品语义不变量：声明 ↔ 测试登记，双向核对
 pnpm factory:deploy    # 部署授权与身份（preflight / verify / access / actions）
-pnpm factory:manifest  # 校验 visual-manifest.json（结构 + 上游比对）
 pnpm factory:kits      # 依 Manifest 安装 Kits（默认 dry-run）
 pnpm factory:kits --write
 pnpm qa:doctor         # Kits doctor 质量门

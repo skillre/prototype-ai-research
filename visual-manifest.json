@@ -16,5 +16,19 @@
     "ambient-animation",
     "cyber-terminal-aesthetic",
     "source-count-charts"
+  ],
+  "deviations": [
+    {
+      "axis": "density",
+      "from": "high",
+      "to": "medium",
+      "reason": "论证链需要每屏可读的纵向节奏；instrument 的 high 会把引用原文挤成灰块。这条偏离在 v1.1 里没有载体，原始记录只活在 components/research/research-shell.css §2 的注释里——现在它有了自己的字段。"
+    },
+    {
+      "axis": "motion",
+      "from": "precise",
+      "to": "precise-structural",
+      "reason": "pack 的 precise 定义的是刻度（--kits-dur-* 与 50ms 即时交互），structural 补的是它没有命名的那个角色：本产品唯一的动效是论证链的揭示（InsightReveal），instrument 没有 ambient role。见 components/research/research-shell.css §5。"
+    }
   ]
 }

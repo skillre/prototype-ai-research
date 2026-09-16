@@ -38,8 +38,51 @@
     },
     "signatureComponents": {
       "type": "array",
-      "description": "Signature Component ids. Each must resolve to an `approved` asset of type `component`. Count constraints are owned by the Kits visual-direction skill, not by this schema.",
+      "description": "Signature Component ids. Each must resolve to an `approved` asset of type `component`. How MANY a product may carry is the product's own decision, recorded in `signatureComponentBudget` — the Factory enforces the stated number, it never imposes one.",
       "items": { "type": "string", "minLength": 1 }
+    },
+    "signatureComponentBudget": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "How many signature components this product allows itself. Optional; 0 is a legitimate decision. Exceeding it is a validation error."
+    },
+    "deviations": {
+      "type": "array",
+      "description": "Where this product knowingly diverges from its Style Pack's defaults, and why. A deviation is a record, not an approval: it never re-opens a door `avoid` has closed, and an axis linked to a manifest field (`density`, `motion`) must agree with that field.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["axis", "from", "to", "reason"],
+        "properties": {
+          "axis": {
+            "enum": [
+              "density",
+              "motion",
+              "layout",
+              "component-budget",
+              "effect-budget",
+              "typography",
+              "color"
+            ],
+            "description": "Which axis is being deviated on. Closed set: an unknown axis is a typo that would look like a recorded decision."
+          },
+          "from": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The pack's / default's value."
+          },
+          "to": {
+            "type": "string",
+            "minLength": 1,
+            "description": "What this product does instead. Must differ from `from`, and must not name anything in `avoid`."
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 8,
+            "description": "Why. Enforced as a minimum length in lib/visual-manifest.ts; a deviation without a reason is a typo with a longer body."
+          }
+        }
+      }
     },
     "effects": {
       "type": "array",
