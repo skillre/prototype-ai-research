@@ -99,6 +99,21 @@ jobs:
     name: Quality gate
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    # The Kits read token, lifted to job level on purpose.
+    #
+    # `secrets` is NOT an available context inside a step condition — the allowed
+    # ones are github / needs / strategy / matrix / job / runner / env / vars /
+    # steps / inputs. Reading it there is a workflow **validation** error, not a
+    # step failure: GitHub rejects the whole file at startup, so the run fails in
+    # the same second it starts, with zero jobs and no log to read (this repo hit
+    # exactly that on run 35042079336). A job-level `env` IS in scope for a step
+    # — it is evaluated before the step runs — so the condition reads the same
+    # value through `env` instead.
+    #
+    # Nothing about the gate's semantics changes: token present → pinned upstream
+    # cross-check; absent → the honest `upstream-unavailable` mode below.
+    env:
+      KITS_REPO_TOKEN: ${{ secrets.KITS_REPO_TOKEN }}
     steps:
       - uses: actions/checkout@v4
 
@@ -164,13 +179,17 @@ jobs:
       #
       # Level 1 + level 2 (shape · self-consistency · deviations · budget) run in
       # both modes: they need no upstream at all.
+      #
+      # The condition reads the token through the job-level `env` declared at the
+      # top of this job, because `secrets` does not exist inside a step
+      # condition. Same value, same meaning, one indirection.
       - name: Check out Prototype Kits (pinned) for the manifest cross-check
-        if: ${{ secrets.KITS_REPO_TOKEN != '' }}
+        if: ${{ env.KITS_REPO_TOKEN != '' }}
         uses: actions/checkout@v4
         with:
           repository: skillre/prototype-kits
           ref: 0ceb04d94f5d1d540fc0b05b1c17dcf1304c7888
-          token: ${{ secrets.KITS_REPO_TOKEN }}
+          token: ${{ env.KITS_REPO_TOKEN }}
           path: .prototype-kits
 
       - name: Visual manifest gate
