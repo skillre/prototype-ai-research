@@ -19,12 +19,12 @@
  * 3000 is Next's default, which means every prototype on this machine, plus any
  * stray `next dev`, races for it. 3200 was the Factory baseline's own slot, and
  * this repository used to hold it too — which is exactly what the workspace
- * catalog flagged: four repositories (`starter`, `s1`, `ai-research`, `kits`)
+ * catalog flagged: four repositories (`starter`, `sth`, `ai-research`, `kits`)
  * pinned to 3200 at once. Two QA runs on the same port do not fail; they sweep
  * **each other's pages** and report green.
  *
  * `catalog/ports.json` assigns this product 3230 (`advisory.proposed`), with
- * 3200 left to the baseline and 3300 / 3220 to kits / s1. A product needs its
+ * 3200 left to the baseline and 3300 / 3220 to kits / sth. A product needs its
  * own slot: the port is a claim of identity, not a scheduling detail.
  *
  * The port is *pinned* rather than left to Next's auto-increment, because

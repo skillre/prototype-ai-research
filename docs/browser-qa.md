@@ -164,7 +164,7 @@ Playwright 的 `reuseExistingServer` 会接受**任何**以 2xx/3xx 应答就绪
 
 | 规则 | 实现 |
 |---|---|
-| 不复用 3000 | `.qa/qa.config.mjs` 的 `QA_PORT = 3230`（本仓**自己的**槽位；3200 是 baseline 的，同机还有 s1 / kits 在跑——见根工作区 `catalog/ports.json`） |
+| 不复用 3000 | `.qa/qa.config.mjs` 的 `QA_PORT = 3230`（本仓**自己的**槽位；3200 是 baseline 的，同机还有 sth / kits 在跑——见根工作区 `catalog/ports.json`） |
 | 不自动连接已存在的未知 server | `reuseExistingServer: false`，**永远**，不是 `!process.env.CI` |
 | server 必须由当前 run 管理 | `pnpm dev --hostname ... --port ...` 显式固定端口，Next 不会自动 +1 |
 | 完成后只停止自己启动的 process | `detached: true` spawn，`process.kill(-pid)` 杀**进程组** |

@@ -59,7 +59,7 @@
 # PORT
 # ----
 # QA runs on `.qa/qa.config.mjs`'s `QA_PORT = 3230`. It used to be 3200, which
-# this repository shared with the baseline, s1 and kits — see catalog/ports.json.
+# this repository shared with the baseline, sth and kits — see catalog/ports.json.
 # Inside CI the runner is isolated, but the value is pinned anyway: a local and a
 # CI run must mean the same thing.
 #

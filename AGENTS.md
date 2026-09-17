@@ -676,7 +676,7 @@ pnpm qa:doctor         # Kits doctor 质量门
 ```
 
 > QA 端口是 **3230**（`.qa/qa.config.mjs` 的 `QA_PORT`）。3200 是 baseline 的槽位，同机还有
-> s1 / kits 在跑——端口是独占资源，见根工作区 `catalog/ports.json`。
+> sth / kits 在跑——端口是独占资源，见根工作区 `catalog/ports.json`。
 
 > `pnpm test` 与 `pnpm qa` **不能同时运行**：Next 16 的 dev server 按项目加锁。
 
