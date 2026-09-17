@@ -38,7 +38,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
   - 允许：宿主内拆分/并行只读或彼此独立的任务；宿主的 Subagent 调用不属于产品代码。
   - 禁止：产品应用代码及其运行时依赖（app/components/lib/hooks/stores/scripts）里出现 agent framework / orchestrator runtime / 多 agent 调度依赖。
   - 判据：`app` `components` `lib` `hooks` `stores` `scripts` 不得 import 编排 SDK；`package.json` 的运行时依赖不得出现编排框架。宿主侧的 Subagent 调用不是产品代码，不受此限。
-- **模型路由**：provider `opencode-go-dsv41` / model `deepseek-flash` / reasoning effort `max`（2026-09-15 与 DSH 模型目录核对）。Subagent 默认走这条路由；改路由先改 `factory-policy.json`。
+- **模型路由**：provider `commandcode` / model `deepseek/deepseek-v4.1-flash` / reasoning effort `max`（2026-09-17 与 DSH 模型目录核对）。Subagent 默认走这条路由；改路由先改 `factory-policy.json`。
 - **单 worktree 单写者**（`single-writer`）：同一棵工作副本同一时间只有一个写者；要并行写就各自独立 worktree。两个写者共享一棵树，冲突不是概率问题，是时间问题。
 - **共享路径单 owner**（`single-owner`）：`AGENTS.md`、`package.json`、`factory-policy.json`、`factory.lock.json`、契约 schema 与门禁脚本这类共享面，同一时间只有一个 owner，其余 agent 只读。
 - **test / qa 串行**（`serial`）：`pnpm test` 与 `pnpm qa` **永不并发**（Next 16 dev server 按项目加锁，并行只会在错误的 server 上出结果）。CI 里同样不得拆成两个并行 job。
@@ -47,6 +47,22 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 机器可读副本：`factory-policy.json` · 关键值：`lib/factory-policy.schema.json` · 基线锁：`factory.lock.json` · 校验器：`scripts/guard-agent-policy.mjs`（`pnpm factory:agents`）。
 <!-- END:factory-core-policy -->
+
+> **块外注记（本仓人类文档，不属于上面的管理块）· 模型路由为什么在 2026-09-17 换**
+>
+> 旧路由 `opencode-go-dsv41 / deepseek-flash` 当天**额度耗尽**——三个 subagent 连续中途死亡、
+> 不留收尾消息（其中两份工作其实已经做完，只是没人收尾）。随后会话侧把
+> `deepseek/deepseek-v4.1-flash` 放进子代理允许名单、并**实测派发成功**，路由遂改为
+> `commandcode / deepseek/deepseek-v4.1-flash / max`，`verifiedOn` 记 **2026-09-17**。
+>
+> 依据：2026-09-17 用 `list_subagent_models` 核到 provider `commandcode` 的子代理可用模型为
+> `deepseek/deepseek-v4.1-flash` 与 `Qwen/Qwen3.8-Flash`，且该 model 广告 reasoning efforts
+> low/medium/high/max。本仓此前那条记录是 `opencode-go-dsv41 / deepseek-flash / 2026-09-15`，
+> 已经过期——本仓 schema 里 `verifiedOn` 的说明原文就是「路由变了要重新核，而不是让这里慢慢过期」。
+>
+> `factory.lock.json` 的 `upgradedBy` 里也出现过旧路由字符串，**这里没有动它**：那一条记的是
+> 「2026-09-15 那次升级是谁做的、当时走的哪条路由」，是**历史事实**，不是需要跟着路由走的最新登记；
+> 本仓没有任何门禁读这个字段，也没有任何命令从 policy 重新生成它。
 
 ## 开发原则（必须遵守）
 
